@@ -79,13 +79,28 @@ export function toDbPropertyType(type: string) {
 }
 
 export function toApiProperty(property: Property) {
+  const imageNames =
+    property.imageNames.length > 0
+      ? property.imageNames
+      : property.imageName
+        ? [property.imageName]
+        : [];
+  const imageDataList =
+    property.imageDataList.length > 0
+      ? property.imageDataList
+      : property.imageData
+        ? [property.imageData]
+        : [];
+
   return {
     id: property.id,
     name: property.name,
     address: property.address,
     type: propertyTypeFromDb[property.type],
-    imageName: property.imageName ?? "",
-    imageData: property.imageData ?? "",
+    imageName: imageNames[0] ?? "",
+    imageData: imageDataList[0] ?? "",
+    imageNames,
+    imageDataList,
   };
 }
 

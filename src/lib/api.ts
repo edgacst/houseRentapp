@@ -65,6 +65,8 @@ export async function updatePropertyApi(property: Property) {
       type: property.type,
       imageName: property.imageName,
       imageData: property.imageData,
+      imageNames: property.imageNames,
+      imageDataList: property.imageDataList,
     }),
   });
 }

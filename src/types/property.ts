@@ -19,4 +19,6 @@ export type Property = {
   type: PropertyType;
   imageName?: string;
   imageData?: string;
+  imageNames?: string[];
+  imageDataList?: string[];
 };

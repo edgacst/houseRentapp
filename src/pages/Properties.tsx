@@ -13,6 +13,8 @@ const emptyPropertyForm: Omit<Property, "id"> = {
   type: "오피스텔",
   imageName: "",
   imageData: "",
+  imageNames: [],
+  imageDataList: [],
 };
 
 function Properties() {
@@ -30,6 +32,9 @@ function Properties() {
   const [form, setForm] = useState<Omit<Property, "id">>(emptyPropertyForm);
   const [initialRooms, setInitialRooms] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const imageNames = form.imageNames ?? [];
+  const imageDataList = form.imageDataList ?? [];
 
   const filteredProperties = useMemo(() => {
     const keyword = search.toLowerCase();
@@ -52,13 +57,28 @@ function Properties() {
   };
 
   const openEditForm = (property: Property) => {
+    const nextImageNames =
+      property.imageNames && property.imageNames.length > 0
+        ? property.imageNames
+        : property.imageName
+          ? [property.imageName]
+          : [];
+    const nextImageDataList =
+      property.imageDataList && property.imageDataList.length > 0
+        ? property.imageDataList
+        : property.imageData
+          ? [property.imageData]
+          : [];
+
     setEditingProperty(property);
     setForm({
       name: property.name,
       address: property.address,
       type: property.type,
-      imageName: property.imageName ?? "",
-      imageData: property.imageData ?? "",
+      imageName: nextImageNames[0] ?? "",
+      imageData: nextImageDataList[0] ?? "",
+      imageNames: nextImageNames,
+      imageDataList: nextImageDataList,
     });
     setInitialRooms("");
     setIsOpen(true);
@@ -71,10 +91,45 @@ function Properties() {
     setIsOpen(false);
   };
 
-  const handleImageChange = async (file?: File) => {
-    if (!file) return;
-    const imageData = await readFileAsDataUrl(file);
-    setForm({ ...form, imageName: file.name, imageData });
+  const handleImageChange = async (files?: FileList | null) => {
+    if (!files?.length) return;
+
+    const roomLeft = Math.max(0, 5 - imageNames.length);
+    const selectedFiles = Array.from(files).slice(0, roomLeft);
+    const nextImages = await Promise.all(
+      selectedFiles.map(async (file) => ({
+        name: file.name,
+        data: await readFileAsDataUrl(file),
+      })),
+    );
+    const nextImageNames = [...imageNames, ...nextImages.map((image) => image.name)];
+    const nextImageDataList = [
+      ...imageDataList,
+      ...nextImages.map((image) => image.data),
+    ];
+
+    setForm({
+      ...form,
+      imageName: nextImageNames[0] ?? "",
+      imageData: nextImageDataList[0] ?? "",
+      imageNames: nextImageNames,
+      imageDataList: nextImageDataList,
+    });
+  };
+
+  const removeImage = (index: number) => {
+    const nextImageNames = imageNames.filter((_, itemIndex) => itemIndex !== index);
+    const nextImageDataList = imageDataList.filter(
+      (_, itemIndex) => itemIndex !== index,
+    );
+
+    setForm({
+      ...form,
+      imageName: nextImageNames[0] ?? "",
+      imageData: nextImageDataList[0] ?? "",
+      imageNames: nextImageNames,
+      imageDataList: nextImageDataList,
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -129,7 +184,7 @@ function Properties() {
               부동산 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              건물 정보, 대표 이미지, 초기 호실을 등록하고 임대 관리의 기본 구조를 만듭니다.
+              건물 정보, 사진, 초기 호실을 등록하고 임대 관리의 기본 구조를 만듭니다.
             </p>
           </div>
           <button
@@ -189,36 +244,54 @@ function Properties() {
               </div>
 
               <div className="rounded-lg border border-slate-200 p-4">
-                <label className="text-sm font-bold text-slate-700">
-                  건물 대표 이미지
-                </label>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="text-sm font-bold text-slate-700">
+                      건물 사진
+                    </label>
+                    <p className="mt-1 text-xs text-slate-500">
+                      최대 5장까지 저장됩니다. 첫 번째 사진이 카드 대표 이미지로 표시됩니다.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                    {imageNames.length}/5장
+                  </span>
+                </div>
                 <input
                   type="file"
+                  multiple
                   accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) => void handleImageChange(event.target.files?.[0])}
-                  className="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white"
+                  disabled={imageNames.length >= 5}
+                  onChange={(event) => void handleImageChange(event.target.files)}
+                  className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white disabled:cursor-not-allowed disabled:opacity-60"
                 />
-                {form.imageData && (
-                  <div className="mt-3 flex items-center gap-4">
-                    <img
-                      src={form.imageData}
-                      alt="건물 대표 이미지 미리보기"
-                      className="h-24 w-32 rounded-lg object-cover"
-                    />
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">
-                        {form.imageName}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm({ ...form, imageName: "", imageData: "" })
-                        }
-                        className="mt-2 text-sm font-bold text-red-600"
+
+                {imageNames.length > 0 && (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    {imageNames.map((name, index) => (
+                      <div
+                        key={`${name}-${index}`}
+                        className="overflow-hidden rounded-lg border border-slate-200 bg-white"
                       >
-                        이미지 제거
-                      </button>
-                    </div>
+                        <img
+                          src={imageDataList[index]}
+                          alt={`${name} 미리보기`}
+                          className="h-24 w-full object-cover"
+                        />
+                        <div className="p-3">
+                          <p className="truncate text-xs font-bold text-slate-700">
+                            {name}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="mt-2 text-xs font-bold text-red-600"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -242,8 +315,8 @@ function Properties() {
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
                 <p className="font-bold">호실 관리는 무엇인가요?</p>
                 <p className="mt-1">
-                  건물 등록 시 호실 이름만 빠르게 만들고, 호실관리에서 보증금, 월세,
-                  관리비, 면적, 공실 상태를 자세히 수정합니다.
+                  건물 등록 시 호실 이름만 빠르게 만들고, 호실관리에서 보증금,
+                  월세, 관리비, 면적, 공실 상태를 자세히 수정합니다.
                 </p>
               </div>
 

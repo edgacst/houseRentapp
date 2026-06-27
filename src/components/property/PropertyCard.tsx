@@ -13,17 +13,32 @@ function PropertyCard({ property, rooms, onEdit, onDelete }: PropertyCardProps) 
   const totalRooms = rooms.length;
   const occupiedRooms = rooms.filter((room) => room.status === "occupied").length;
   const vacantRooms = rooms.filter((room) => room.status === "vacant").length;
+  const imageData =
+    property.imageDataList && property.imageDataList.length > 0
+      ? property.imageDataList[0]
+      : property.imageData;
+  const imageCount =
+    property.imageDataList && property.imageDataList.length > 0
+      ? property.imageDataList.length
+      : property.imageData
+        ? 1
+        : 0;
   const occupancyRate =
     totalRooms === 0 ? 0 : Math.round((occupiedRooms / totalRooms) * 100);
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      {property.imageData ? (
-        <img
-          src={property.imageData}
-          alt={`${property.name} 건물 이미지`}
-          className="h-40 w-full object-cover"
-        />
+      {imageData ? (
+        <div className="relative">
+          <img
+            src={imageData}
+            alt={`${property.name} 건물 이미지`}
+            className="h-40 w-full object-cover"
+          />
+          <span className="absolute right-3 top-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-bold text-white">
+            사진 {imageCount}장
+          </span>
+        </div>
       ) : (
         <div className="flex h-28 items-center justify-center bg-slate-100 text-sm font-bold text-slate-400">
           건물 이미지 없음

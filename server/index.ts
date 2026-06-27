@@ -5,8 +5,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { requireAuth, signToken } from "./auth.js";
 import {
-  toApiProperty,
   toApiContract,
+  toApiProperty,
   toApiRentPayment,
   toApiRoom,
   toApiTenant,
@@ -22,7 +22,7 @@ const app = express();
 const port = Number(process.env.API_PORT ?? 4000);
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "houserent-api" });
@@ -90,13 +90,37 @@ app.get("/api/me", requireAuth, async (req, res) => {
   res.json(user);
 });
 
-const propertySchema = z.object({
-  name: z.string().min(1),
-  address: z.string().min(1),
-  type: z.enum(["오피스텔", "빌라", "상가", "아파트", "원룸"]),
-  imageName: z.string().optional(),
-  imageData: z.string().optional(),
-});
+const propertySchema = z
+  .object({
+    name: z.string().min(1),
+    address: z.string().min(1),
+    type: z.enum(["오피스텔", "빌라", "상가", "아파트", "원룸"]),
+    imageName: z.string().optional(),
+    imageData: z.string().optional(),
+    imageNames: z.array(z.string()).max(5).optional(),
+    imageDataList: z.array(z.string()).max(5).optional(),
+  })
+  .refine(
+    (value) => (value.imageNames?.length ?? 0) === (value.imageDataList?.length ?? 0),
+    { message: "이미지 파일명과 이미지 데이터 개수가 일치해야 합니다." },
+  );
+
+function normalizePropertyImages(data: z.infer<typeof propertySchema>) {
+  const imageNames = data.imageNames?.slice(0, 5) ?? [];
+  const imageDataList = data.imageDataList?.slice(0, 5) ?? [];
+
+  if (imageNames.length === 0 && data.imageName && data.imageData) {
+    imageNames.push(data.imageName);
+    imageDataList.push(data.imageData);
+  }
+
+  return {
+    imageNames,
+    imageDataList,
+    imageName: imageNames[0] ?? "",
+    imageData: imageDataList[0] ?? "",
+  };
+}
 
 app.get("/api/properties", requireAuth, async (req, res) => {
   const properties = await prisma.property.findMany({
@@ -109,6 +133,7 @@ app.get("/api/properties", requireAuth, async (req, res) => {
 app.post("/api/properties", requireAuth, async (req, res) => {
   const result = propertySchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+  const images = normalizePropertyImages(result.data);
 
   const property = await prisma.property.create({
     data: {
@@ -116,8 +141,10 @@ app.post("/api/properties", requireAuth, async (req, res) => {
       name: result.data.name,
       address: result.data.address,
       type: toDbPropertyType(result.data.type),
-      imageName: result.data.imageName,
-      imageData: result.data.imageData,
+      imageName: images.imageName,
+      imageData: images.imageData,
+      imageNames: images.imageNames,
+      imageDataList: images.imageDataList,
     },
   });
 
@@ -128,6 +155,7 @@ app.put("/api/properties/:id", requireAuth, async (req, res) => {
   const result = propertySchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
   const id = String(req.params.id);
+  const images = normalizePropertyImages(result.data);
 
   const updated = await prisma.property.updateMany({
     where: { id, userId: req.userId },
@@ -135,8 +163,10 @@ app.put("/api/properties/:id", requireAuth, async (req, res) => {
       name: result.data.name,
       address: result.data.address,
       type: toDbPropertyType(result.data.type),
-      imageName: result.data.imageName,
-      imageData: result.data.imageData,
+      imageName: images.imageName,
+      imageData: images.imageData,
+      imageNames: images.imageNames,
+      imageDataList: images.imageDataList,
     },
   });
   if (updated.count === 0) return res.status(404).json({ message: "건물을 찾을 수 없습니다." });
