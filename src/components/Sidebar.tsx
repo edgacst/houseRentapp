@@ -12,10 +12,19 @@ const menus = [
 
 function Sidebar() {
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-900 text-white">
-      <div className="border-b border-slate-800 p-6">
-        <h1 className="text-2xl font-bold tracking-wide">HOUSERENT</h1>
-        <p className="mt-2 text-sm text-slate-400">Smart Property Management</p>
+    <aside className="sticky top-0 flex h-screen w-72 flex-col border-r border-slate-200 bg-white/95 text-slate-900 backdrop-blur">
+      <div className="border-b border-slate-100 p-6">
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-lg bg-slate-950 text-sm font-black text-white">
+            HR
+          </div>
+          <div>
+            <h1 className="text-xl font-black tracking-tight">HOUSERENT</h1>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">
+              Rental operations
+            </p>
+          </div>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4">
@@ -24,25 +33,40 @@ function Sidebar() {
             key={menu.path}
             to={menu.path}
             className={({ isActive }) =>
-              `mb-2 flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition ${
+              `mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
                 isActive
-                  ? "bg-blue-600 text-white shadow"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  ? "bg-slate-950 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
               }`
             }
           >
-            <span className="grid h-6 w-6 place-items-center rounded bg-slate-800 text-xs">
-              {menu.icon}
-            </span>
-            {menu.name}
+            {({ isActive }) => (
+              <>
+                <span
+                  className={`grid h-8 w-8 place-items-center rounded-md text-xs ${
+                    isActive
+                      ? "bg-white/15 text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {menu.icon}
+                </span>
+                {menu.name}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="border-t border-slate-800 p-4">
-        <div className="rounded-lg bg-slate-800 p-4">
-          <p className="text-xs text-slate-400">HOUSERENT</p>
-          <p className="mt-1 text-sm font-semibold">Version 1.0</p>
+      <div className="p-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold text-slate-500">현재 단계</p>
+          <p className="mt-1 text-sm font-bold text-slate-900">
+            인증 + DB 연결
+          </p>
+          <div className="mt-3 h-2 rounded-full bg-slate-200">
+            <div className="h-2 w-2/3 rounded-full bg-blue-600" />
+          </div>
         </div>
       </div>
     </aside>

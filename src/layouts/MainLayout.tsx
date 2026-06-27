@@ -7,13 +7,12 @@ type MainLayoutProps = {
 
 function MainLayout({ children }: MainLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen bg-[#f6f7fb] text-slate-950">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header />
-
-        <main className="flex-1 p-8">{children}</main>
+        <main className="flex-1 px-6 py-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

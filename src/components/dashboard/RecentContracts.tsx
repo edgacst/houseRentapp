@@ -13,20 +13,21 @@ function RecentContracts() {
   const recentContracts = contracts.slice(0, 4);
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">최근 계약</h2>
+          <h2 className="text-lg font-black text-slate-950">최근 계약</h2>
           <p className="mt-1 text-sm text-slate-500">
-            최근 등록된 임대차 계약입니다.
+            새로 등록되었거나 관리 중인 계약입니다.
           </p>
         </div>
-        <Link to="/contracts" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+        <Link to="/contracts" className="text-sm font-bold text-blue-600">
           전체보기
         </Link>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
+        {recentContracts.length === 0 && <EmptyText text="계약 데이터가 없습니다." />}
         {recentContracts.map((contract) => {
           const property = properties.find((item) => item.id === contract.propertyId);
           const room = rooms.find((item) => item.id === contract.roomId);
@@ -37,14 +38,14 @@ function RecentContracts() {
               className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3"
             >
               <div>
-                <p className="font-semibold text-slate-900">
-                  {property?.name} {room?.name}
+                <p className="font-bold text-slate-900">
+                  {property?.name ?? "미등록 건물"} {room?.name ?? ""}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  {tenant?.name} · 종료일 {contract.endDate}
+                  {tenant?.name ?? "임차인 미연결"} · 종료일 {contract.endDate}
                 </p>
               </div>
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
                 {statusText[contract.status]}
               </span>
             </div>
@@ -53,6 +54,10 @@ function RecentContracts() {
       </div>
     </section>
   );
+}
+
+function EmptyText({ text }: { text: string }) {
+  return <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">{text}</p>;
 }
 
 export default RecentContracts;
