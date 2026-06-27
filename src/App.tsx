@@ -8,27 +8,49 @@ import Contracts from "./pages/Contracts";
 import Rents from "./pages/Rents";
 import Statistics from "./pages/Statistics";
 import { AppProvider } from "./context/AppContext";
+import Auth from "./pages/Auth";
+import { useAppData } from "./context/AppContext";
 
 function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/properties" element={<Properties />} />
-          <Route path="/properties/:id" element={<PropertyDetail />} />
-          <Route path="/rooms" element={<Rooms />} />
-          <Route path="/tenants" element={<Tenants />} />
-          <Route path="/contracts" element={<Contracts />} />
-          <Route path="/rents" element={<Rents />} />
-          <Route path="/statistics" element={<Statistics />} />
-
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <AppRoutes />
     </AppProvider>
+  );
+}
+
+function AppRoutes() {
+  const { user, isBootstrapping } = useAppData();
+
+  if (isBootstrapping) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-100 text-sm font-semibold text-slate-600">
+        HOUSERENT 준비 중
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth />;
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/properties" element={<Properties />} />
+        <Route path="/properties/:id" element={<PropertyDetail />} />
+        <Route path="/rooms" element={<Rooms />} />
+        <Route path="/tenants" element={<Tenants />} />
+        <Route path="/contracts" element={<Contracts />} />
+        <Route path="/rents" element={<Rents />} />
+        <Route path="/statistics" element={<Statistics />} />
+
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

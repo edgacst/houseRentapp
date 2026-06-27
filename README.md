@@ -21,20 +21,26 @@ npm run dev
 
 ## API 서버와 DB
 
-1. `.env.example`을 `.env`로 복사하고 PostgreSQL 접속 정보를 수정합니다.
+1. PostgreSQL을 실행합니다. Docker를 쓰는 경우 아래 명령으로 실행할 수 있습니다.
+
+```bash
+docker compose up -d
+```
+
+2. `.env.example`을 `.env`로 복사하고 PostgreSQL 접속 정보를 수정합니다.
 
 ```bash
 cp .env.example .env
 ```
 
-2. Prisma Client를 생성하고 마이그레이션을 실행합니다.
+3. Prisma Client를 생성하고 마이그레이션을 실행합니다.
 
 ```bash
 npm run db:generate
 npm run db:migrate
 ```
 
-3. API 서버와 프론트 서버를 각각 실행합니다.
+4. API 서버와 프론트 서버를 각각 실행합니다.
 
 ```bash
 npm run dev:api
