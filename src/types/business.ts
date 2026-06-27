@@ -37,3 +37,18 @@ export type RentPayment = {
   status: RentStatus;
   memo?: string;
 };
+
+export type MaintenanceChargeStatus = "paid" | "unpaid" | "late";
+
+export type MaintenanceCharge = {
+  id: string;
+  propertyId: string;
+  roomId?: string;
+  title: string;
+  billingMonth: string;
+  dueDate: string;
+  amount: number;
+  status: MaintenanceChargeStatus;
+  paidDate?: string;
+  memo?: string;
+};

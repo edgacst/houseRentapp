@@ -6,11 +6,13 @@ import { z } from "zod";
 import { requireAuth, signToken } from "./auth.js";
 import {
   toApiContract,
+  toApiMaintenanceCharge,
   toApiProperty,
   toApiRentPayment,
   toApiRoom,
   toApiTenant,
   toDbContractStatus,
+  toDbMaintenanceStatus,
   toDbPropertyType,
   toDbRentStatus,
   toDbRoomStatus,
@@ -22,7 +24,7 @@ const app = express();
 const port = Number(process.env.API_PORT ?? 4000);
 
 app.use(cors());
-app.use(express.json({ limit: "25mb" }));
+app.use(express.json({ limit: "50mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "houserent-api" });
@@ -90,6 +92,44 @@ app.get("/api/me", requireAuth, async (req, res) => {
   res.json(user);
 });
 
+const updateMeSchema = z.object({
+  name: z.string().min(1),
+});
+
+app.put("/api/me", requireAuth, async (req, res) => {
+  const result = updateMeSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "이름을 입력하세요." });
+
+  const user = await prisma.user.update({
+    where: { id: req.userId },
+    data: { name: result.data.name },
+    select: { id: true, email: true, name: true },
+  });
+  res.json(user);
+});
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1),
+  nextPassword: z.string().min(8),
+});
+
+app.put("/api/me/password", requireAuth, async (req, res) => {
+  const result = passwordSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "비밀번호는 8자 이상이어야 합니다." });
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user) return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
+
+  const ok = await bcrypt.compare(result.data.currentPassword, user.passwordHash);
+  if (!ok) return res.status(401).json({ message: "현재 비밀번호가 올바르지 않습니다." });
+
+  await prisma.user.update({
+    where: { id: req.userId },
+    data: { passwordHash: await bcrypt.hash(result.data.nextPassword, 12) },
+  });
+  res.status(204).send();
+});
+
 const propertySchema = z
   .object({
     name: z.string().min(1),
@@ -99,26 +139,72 @@ const propertySchema = z
     imageData: z.string().optional(),
     imageNames: z.array(z.string()).max(5).optional(),
     imageDataList: z.array(z.string()).max(5).optional(),
+    builtYear: z.number().int().min(1800).max(3000).optional(),
+    totalFloors: z.number().int().min(0).max(300).optional(),
+    hasElevator: z.boolean().optional(),
+    parkingAvailable: z.boolean().optional(),
+    managementType: z.string().optional(),
+    managerName: z.string().optional(),
+    managerPhone: z.string().optional(),
+    memo: z.string().optional(),
+    documentNames: z.array(z.string()).max(5).optional(),
+    documentDataList: z.array(z.string()).max(5).optional(),
   })
   .refine(
     (value) => (value.imageNames?.length ?? 0) === (value.imageDataList?.length ?? 0),
     { message: "이미지 파일명과 이미지 데이터 개수가 일치해야 합니다." },
+  )
+  .refine(
+    (value) =>
+      (value.documentNames?.length ?? 0) === (value.documentDataList?.length ?? 0),
+    { message: "문서 파일명과 문서 데이터 개수가 일치해야 합니다." },
   );
 
-function normalizePropertyImages(data: z.infer<typeof propertySchema>) {
-  const imageNames = data.imageNames?.slice(0, 5) ?? [];
-  const imageDataList = data.imageDataList?.slice(0, 5) ?? [];
+function normalizeFiles(names?: string[], dataList?: string[], max = 5) {
+  return {
+    names: names?.slice(0, max) ?? [],
+    dataList: dataList?.slice(0, max) ?? [],
+  };
+}
 
-  if (imageNames.length === 0 && data.imageName && data.imageData) {
-    imageNames.push(data.imageName);
-    imageDataList.push(data.imageData);
+function normalizePropertyImages(data: z.infer<typeof propertySchema>) {
+  const images = normalizeFiles(data.imageNames, data.imageDataList);
+
+  if (images.names.length === 0 && data.imageName && data.imageData) {
+    images.names.push(data.imageName);
+    images.dataList.push(data.imageData);
   }
 
   return {
-    imageNames,
-    imageDataList,
-    imageName: imageNames[0] ?? "",
-    imageData: imageDataList[0] ?? "",
+    imageNames: images.names,
+    imageDataList: images.dataList,
+    imageName: images.names[0] ?? "",
+    imageData: images.dataList[0] ?? "",
+  };
+}
+
+function propertyData(data: z.infer<typeof propertySchema>) {
+  const images = normalizePropertyImages(data);
+  const documents = normalizeFiles(data.documentNames, data.documentDataList);
+
+  return {
+    name: data.name,
+    address: data.address,
+    type: toDbPropertyType(data.type),
+    imageName: images.imageName,
+    imageData: images.imageData,
+    imageNames: images.imageNames,
+    imageDataList: images.imageDataList,
+    builtYear: data.builtYear ?? null,
+    totalFloors: data.totalFloors ?? null,
+    hasElevator: data.hasElevator ?? false,
+    parkingAvailable: data.parkingAvailable ?? false,
+    managementType: data.managementType,
+    managerName: data.managerName,
+    managerPhone: data.managerPhone,
+    memo: data.memo,
+    documentNames: documents.names,
+    documentDataList: documents.dataList,
   };
 }
 
@@ -133,18 +219,11 @@ app.get("/api/properties", requireAuth, async (req, res) => {
 app.post("/api/properties", requireAuth, async (req, res) => {
   const result = propertySchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
-  const images = normalizePropertyImages(result.data);
 
   const property = await prisma.property.create({
     data: {
       userId: req.userId!,
-      name: result.data.name,
-      address: result.data.address,
-      type: toDbPropertyType(result.data.type),
-      imageName: images.imageName,
-      imageData: images.imageData,
-      imageNames: images.imageNames,
-      imageDataList: images.imageDataList,
+      ...propertyData(result.data),
     },
   });
 
@@ -155,19 +234,10 @@ app.put("/api/properties/:id", requireAuth, async (req, res) => {
   const result = propertySchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
   const id = String(req.params.id);
-  const images = normalizePropertyImages(result.data);
 
   const updated = await prisma.property.updateMany({
     where: { id, userId: req.userId },
-    data: {
-      name: result.data.name,
-      address: result.data.address,
-      type: toDbPropertyType(result.data.type),
-      imageName: images.imageName,
-      imageData: images.imageData,
-      imageNames: images.imageNames,
-      imageDataList: images.imageDataList,
-    },
+    data: propertyData(result.data),
   });
   if (updated.count === 0) return res.status(404).json({ message: "건물을 찾을 수 없습니다." });
 
@@ -458,6 +528,50 @@ app.get("/api/rent-payments", requireAuth, async (req, res) => {
   res.json(payments.map(toApiRentPayment));
 });
 
+app.post("/api/rent-payments/generate-month", requireAuth, async (req, res) => {
+  const result = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }).safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "생성할 월을 선택하세요." });
+
+  const [year, month] = result.data.month.split("-").map(Number);
+  const monthStart = new Date(year, month - 1, 1);
+  const nextMonthStart = new Date(year, month, 1);
+  const contracts = await prisma.contract.findMany({
+    where: { userId: req.userId, status: "ACTIVE" },
+  });
+
+  const created = [];
+  for (const contract of contracts) {
+    const exists = await prisma.rentPayment.findFirst({
+      where: {
+        userId: req.userId,
+        contractId: contract.id,
+        dueDate: { gte: monthStart, lt: nextMonthStart },
+      },
+    });
+    if (exists) continue;
+
+    const lastDay = new Date(year, month, 0).getDate();
+    const dueDate = new Date(year, month - 1, Math.min(contract.paymentDay, lastDay));
+    const payment = await prisma.rentPayment.create({
+      data: {
+        userId: req.userId!,
+        contractId: contract.id,
+        dueDate,
+        rentAmount: contract.monthlyRent,
+        maintenanceFee: contract.maintenanceFee,
+        status: "UNPAID",
+        memo: `${result.data.month} 자동 생성`,
+      },
+    });
+    created.push(payment);
+  }
+
+  res.status(201).json({
+    createdCount: created.length,
+    payments: created.map(toApiRentPayment),
+  });
+});
+
 app.post("/api/rent-payments", requireAuth, async (req, res) => {
   const result = rentPaymentSchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
@@ -513,6 +627,95 @@ app.delete("/api/rent-payments/:id", requireAuth, async (req, res) => {
     where: { id, userId: req.userId },
   });
   if (deleted.count === 0) return res.status(404).json({ message: "월세 내역을 찾을 수 없습니다." });
+  res.status(204).send();
+});
+
+const maintenanceSchema = z.object({
+  propertyId: z.string().min(1),
+  roomId: z.string().optional(),
+  title: z.string().min(1),
+  billingMonth: z.string().regex(/^\d{4}-\d{2}$/),
+  dueDate: z.string().min(1),
+  amount: z.number().int().nonnegative(),
+  status: z.enum(["paid", "unpaid", "late"]),
+  paidDate: z.string().optional(),
+  memo: z.string().optional(),
+});
+
+app.get("/api/maintenance-charges", requireAuth, async (req, res) => {
+  const charges = await prisma.maintenanceCharge.findMany({
+    where: { userId: req.userId },
+    orderBy: [{ dueDate: "desc" }, { createdAt: "desc" }],
+  });
+  res.json(charges.map(toApiMaintenanceCharge));
+});
+
+app.post("/api/maintenance-charges", requireAuth, async (req, res) => {
+  const result = maintenanceSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+
+  const property = await prisma.property.findFirst({
+    where: { id: result.data.propertyId, userId: req.userId },
+  });
+  if (!property) return res.status(404).json({ message: "건물을 찾을 수 없습니다." });
+
+  if (result.data.roomId) {
+    const room = await prisma.room.findFirst({
+      where: { id: result.data.roomId, propertyId: result.data.propertyId, userId: req.userId },
+    });
+    if (!room) return res.status(404).json({ message: "호실을 찾을 수 없습니다." });
+  }
+
+  const charge = await prisma.maintenanceCharge.create({
+    data: {
+      userId: req.userId!,
+      propertyId: result.data.propertyId,
+      roomId: result.data.roomId || null,
+      title: result.data.title,
+      billingMonth: result.data.billingMonth,
+      dueDate: new Date(result.data.dueDate),
+      amount: result.data.amount,
+      status: toDbMaintenanceStatus(result.data.status),
+      paidDate: result.data.paidDate ? new Date(result.data.paidDate) : null,
+      memo: result.data.memo,
+    },
+  });
+  res.status(201).json(toApiMaintenanceCharge(charge));
+});
+
+app.put("/api/maintenance-charges/:id", requireAuth, async (req, res) => {
+  const result = maintenanceSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+  const id = String(req.params.id);
+
+  const updated = await prisma.maintenanceCharge.updateMany({
+    where: { id, userId: req.userId },
+    data: {
+      propertyId: result.data.propertyId,
+      roomId: result.data.roomId || null,
+      title: result.data.title,
+      billingMonth: result.data.billingMonth,
+      dueDate: new Date(result.data.dueDate),
+      amount: result.data.amount,
+      status: toDbMaintenanceStatus(result.data.status),
+      paidDate: result.data.paidDate ? new Date(result.data.paidDate) : null,
+      memo: result.data.memo,
+    },
+  });
+  if (updated.count === 0) return res.status(404).json({ message: "관리비 청구를 찾을 수 없습니다." });
+
+  const charge = await prisma.maintenanceCharge.findFirstOrThrow({
+    where: { id, userId: req.userId },
+  });
+  res.json(toApiMaintenanceCharge(charge));
+});
+
+app.delete("/api/maintenance-charges/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const deleted = await prisma.maintenanceCharge.deleteMany({
+    where: { id, userId: req.userId },
+  });
+  if (deleted.count === 0) return res.status(404).json({ message: "관리비 청구를 찾을 수 없습니다." });
   res.status(204).send();
 });
 

@@ -1,4 +1,11 @@
-import type { Contract, Property, RentPayment, Room, Tenant } from "@prisma/client";
+import type {
+  Contract,
+  MaintenanceCharge,
+  Property,
+  RentPayment,
+  Room,
+  Tenant,
+} from "@prisma/client";
 
 const propertyTypeToDb = {
   오피스텔: "OFFICETEL",
@@ -62,13 +69,13 @@ const contractStatusFromDb = {
   TERMINATED: "terminated",
 } as const;
 
-const rentStatusToDb = {
+const paymentStatusToDb = {
   paid: "PAID",
   unpaid: "UNPAID",
   late: "LATE",
 } as const;
 
-const rentStatusFromDb = {
+const paymentStatusFromDb = {
   PAID: "paid",
   UNPAID: "unpaid",
   LATE: "late",
@@ -101,6 +108,16 @@ export function toApiProperty(property: Property) {
     imageData: imageDataList[0] ?? "",
     imageNames,
     imageDataList,
+    builtYear: property.builtYear ?? undefined,
+    totalFloors: property.totalFloors ?? undefined,
+    hasElevator: property.hasElevator,
+    parkingAvailable: property.parkingAvailable,
+    managementType: property.managementType ?? "",
+    managerName: property.managerName ?? "",
+    managerPhone: property.managerPhone ?? "",
+    memo: property.memo ?? "",
+    documentNames: property.documentNames,
+    documentDataList: property.documentDataList,
   };
 }
 
@@ -162,7 +179,7 @@ export function toApiContract(contract: Contract) {
 }
 
 export function toDbRentStatus(status: string) {
-  return rentStatusToDb[status as keyof typeof rentStatusToDb];
+  return paymentStatusToDb[status as keyof typeof paymentStatusToDb];
 }
 
 export function toApiRentPayment(payment: RentPayment) {
@@ -173,7 +190,26 @@ export function toApiRentPayment(payment: RentPayment) {
     paidDate: payment.paidDate?.toISOString().slice(0, 10) ?? "",
     rentAmount: payment.rentAmount,
     maintenanceFee: payment.maintenanceFee,
-    status: rentStatusFromDb[payment.status],
+    status: paymentStatusFromDb[payment.status],
     memo: payment.memo ?? "",
+  };
+}
+
+export function toDbMaintenanceStatus(status: string) {
+  return paymentStatusToDb[status as keyof typeof paymentStatusToDb];
+}
+
+export function toApiMaintenanceCharge(charge: MaintenanceCharge) {
+  return {
+    id: charge.id,
+    propertyId: charge.propertyId,
+    roomId: charge.roomId ?? "",
+    title: charge.title,
+    billingMonth: charge.billingMonth,
+    dueDate: charge.dueDate.toISOString().slice(0, 10),
+    amount: charge.amount,
+    status: paymentStatusFromDb[charge.status],
+    paidDate: charge.paidDate?.toISOString().slice(0, 10) ?? "",
+    memo: charge.memo ?? "",
   };
 }

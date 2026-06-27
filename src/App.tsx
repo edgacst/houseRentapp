@@ -1,15 +1,16 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AppProvider, useAppData } from "./context/AppContext";
+import Account from "./pages/Account";
+import Auth from "./pages/Auth";
+import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
+import Maintenance from "./pages/Maintenance";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
-import Rooms from "./pages/Rooms";
-import Tenants from "./pages/Tenants";
-import Contracts from "./pages/Contracts";
 import Rents from "./pages/Rents";
+import Rooms from "./pages/Rooms";
 import Statistics from "./pages/Statistics";
-import { AppProvider } from "./context/AppContext";
-import Auth from "./pages/Auth";
-import { useAppData } from "./context/AppContext";
+import Tenants from "./pages/Tenants";
 
 function App() {
   return (
@@ -38,7 +39,6 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/properties" element={<Properties />} />
         <Route path="/properties/:id" element={<PropertyDetail />} />
@@ -46,8 +46,9 @@ function AppRoutes() {
         <Route path="/tenants" element={<Tenants />} />
         <Route path="/contracts" element={<Contracts />} />
         <Route path="/rents" element={<Rents />} />
+        <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/statistics" element={<Statistics />} />
-
+        <Route path="/account" element={<Account />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

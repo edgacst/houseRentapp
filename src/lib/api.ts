@@ -1,6 +1,11 @@
 import type { Property } from "../types/property";
 import type { Room } from "../types/room";
-import type { Contract, RentPayment, Tenant } from "../types/business";
+import type {
+  Contract,
+  MaintenanceCharge,
+  RentPayment,
+  Tenant,
+} from "../types/business";
 
 const TOKEN_KEY = "houserent_token";
 
@@ -45,6 +50,23 @@ export async function getMe() {
   return request<AuthUser>("/api/me");
 }
 
+export async function updateMe(name: string) {
+  return request<AuthUser>("/api/me", {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function changePassword(
+  currentPassword: string,
+  nextPassword: string,
+) {
+  await request<void>("/api/me/password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, nextPassword }),
+  });
+}
+
 export async function fetchProperties() {
   return request<Property[]>("/api/properties");
 }
@@ -59,15 +81,7 @@ export async function createProperty(property: Omit<Property, "id">) {
 export async function updatePropertyApi(property: Property) {
   return request<Property>(`/api/properties/${property.id}`, {
     method: "PUT",
-    body: JSON.stringify({
-      name: property.name,
-      address: property.address,
-      type: property.type,
-      imageName: property.imageName,
-      imageData: property.imageData,
-      imageNames: property.imageNames,
-      imageDataList: property.imageDataList,
-    }),
+    body: JSON.stringify(toPropertyPayload(property)),
   });
 }
 
@@ -153,6 +167,16 @@ export async function fetchRentPayments() {
   return request<RentPayment[]>("/api/rent-payments");
 }
 
+export async function generateRentPayments(month: string) {
+  return request<{ createdCount: number; payments: RentPayment[] }>(
+    "/api/rent-payments/generate-month",
+    {
+      method: "POST",
+      body: JSON.stringify({ month }),
+    },
+  );
+}
+
 export async function createRentPayment(payment: RentPayment) {
   return request<RentPayment>("/api/rent-payments", {
     method: "POST",
@@ -169,6 +193,30 @@ export async function updateRentPaymentApi(payment: RentPayment) {
 
 export async function deleteRentPaymentApi(paymentId: string) {
   await request<void>(`/api/rent-payments/${paymentId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchMaintenanceCharges() {
+  return request<MaintenanceCharge[]>("/api/maintenance-charges");
+}
+
+export async function createMaintenanceCharge(charge: MaintenanceCharge) {
+  return request<MaintenanceCharge>("/api/maintenance-charges", {
+    method: "POST",
+    body: JSON.stringify(toMaintenanceChargePayload(charge)),
+  });
+}
+
+export async function updateMaintenanceChargeApi(charge: MaintenanceCharge) {
+  return request<MaintenanceCharge>(`/api/maintenance-charges/${charge.id}`, {
+    method: "PUT",
+    body: JSON.stringify(toMaintenanceChargePayload(charge)),
+  });
+}
+
+export async function deleteMaintenanceChargeApi(chargeId: string) {
+  await request<void>(`/api/maintenance-charges/${chargeId}`, {
     method: "DELETE",
   });
 }
@@ -194,6 +242,28 @@ async function request<T>(path: string, options: RequestInit = {}) {
   }
 
   return (await response.json()) as T;
+}
+
+function toPropertyPayload(property: Property) {
+  return {
+    name: property.name,
+    address: property.address,
+    type: property.type,
+    imageName: property.imageName,
+    imageData: property.imageData,
+    imageNames: property.imageNames,
+    imageDataList: property.imageDataList,
+    builtYear: property.builtYear,
+    totalFloors: property.totalFloors,
+    hasElevator: property.hasElevator,
+    parkingAvailable: property.parkingAvailable,
+    managementType: property.managementType,
+    managerName: property.managerName,
+    managerPhone: property.managerPhone,
+    memo: property.memo,
+    documentNames: property.documentNames,
+    documentDataList: property.documentDataList,
+  };
 }
 
 function toRoomPayload(room: Room) {
@@ -247,5 +317,19 @@ function toRentPaymentPayload(payment: RentPayment) {
     maintenanceFee: payment.maintenanceFee,
     status: payment.status,
     memo: payment.memo,
+  };
+}
+
+function toMaintenanceChargePayload(charge: MaintenanceCharge) {
+  return {
+    propertyId: charge.propertyId,
+    roomId: charge.roomId,
+    title: charge.title,
+    billingMonth: charge.billingMonth,
+    dueDate: charge.dueDate,
+    amount: charge.amount,
+    status: charge.status,
+    paidDate: charge.paidDate,
+    memo: charge.memo,
   };
 }

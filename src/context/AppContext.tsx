@@ -7,35 +7,47 @@ import {
   type ReactNode,
 } from "react";
 import {
+  changePassword,
   clearStoredToken,
   createContract,
+  createMaintenanceCharge,
   createProperty,
   createRentPayment,
   createRoom,
   createTenant,
   deleteContractApi,
+  deleteMaintenanceChargeApi,
   deletePropertyApi,
   deleteRentPaymentApi,
   deleteRoomApi,
   deleteTenantApi,
   fetchContracts,
+  fetchMaintenanceCharges,
   fetchProperties,
   fetchRentPayments,
   fetchRooms,
   fetchTenants,
+  generateRentPayments,
   getMe,
   getStoredToken,
   login,
   register,
   storeToken,
   updateContractApi,
+  updateMaintenanceChargeApi,
+  updateMe,
   updatePropertyApi,
   updateRentPaymentApi,
   updateRoomApi,
   updateTenantApi,
   type AuthUser,
 } from "../lib/api";
-import type { Contract, RentPayment, Tenant } from "../types/business";
+import type {
+  Contract,
+  MaintenanceCharge,
+  RentPayment,
+  Tenant,
+} from "../types/business";
 import type { Property } from "../types/property";
 import type { Room } from "../types/room";
 
@@ -49,11 +61,17 @@ type AppContextValue = {
   tenants: Tenant[];
   contracts: Contract[];
   rentPayments: RentPayment[];
+  maintenanceCharges: MaintenanceCharge[];
   loginWithPassword: (email: string, password: string) => Promise<void>;
   registerWithPassword: (
     name: string,
     email: string,
     password: string,
+  ) => Promise<void>;
+  updateProfile: (name: string) => Promise<void>;
+  changeAccountPassword: (
+    currentPassword: string,
+    nextPassword: string,
   ) => Promise<void>;
   logout: () => void;
   reloadWorkspace: () => Promise<void>;
@@ -68,6 +86,9 @@ type AppContextValue = {
   deleteContract: (contractId: string) => Promise<void>;
   upsertRentPayment: (payment: RentPayment) => Promise<void>;
   deleteRentPayment: (paymentId: string) => Promise<void>;
+  generateMonthlyRentPayments: (month: string) => Promise<number>;
+  upsertMaintenanceCharge: (charge: MaintenanceCharge) => Promise<void>;
+  deleteMaintenanceCharge: (chargeId: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -82,6 +103,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [rentPayments, setRentPayments] = useState<RentPayment[]>([]);
+  const [maintenanceCharges, setMaintenanceCharges] = useState<MaintenanceCharge[]>([]);
+
+  const clearWorkspace = () => {
+    setProperties([]);
+    setRooms([]);
+    setTenants([]);
+    setContracts([]);
+    setRentPayments([]);
+    setMaintenanceCharges([]);
+  };
 
   const reloadWorkspace = async () => {
     setIsDataLoading(true);
@@ -92,18 +123,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nextTenants,
         nextContracts,
         nextRentPayments,
+        nextMaintenanceCharges,
       ] = await Promise.all([
         fetchProperties(),
         fetchRooms(),
         fetchTenants(),
         fetchContracts(),
         fetchRentPayments(),
+        fetchMaintenanceCharges(),
       ]);
       setProperties(nextProperties);
       setRooms(nextRooms);
       setTenants(nextTenants);
       setContracts(nextContracts);
       setRentPayments(nextRentPayments);
+      setMaintenanceCharges(nextMaintenanceCharges);
     } finally {
       setIsDataLoading(false);
     }
@@ -143,6 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       tenants,
       contracts,
       rentPayments,
+      maintenanceCharges,
       loginWithPassword: async (email, password) => {
         const response = await login(email, password);
         storeToken(response.token);
@@ -153,20 +188,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const response = await register(name, email, password);
         storeToken(response.token);
         setUser(response.user);
-        setProperties([]);
-        setRooms([]);
-        setTenants([]);
-        setContracts([]);
-        setRentPayments([]);
+        clearWorkspace();
+      },
+      updateProfile: async (name) => {
+        const nextUser = await updateMe(name);
+        setUser(nextUser);
+      },
+      changeAccountPassword: async (currentPassword, nextPassword) => {
+        await changePassword(currentPassword, nextPassword);
       },
       logout: () => {
         clearStoredToken();
         setUser(null);
-        setProperties([]);
-        setRooms([]);
-        setTenants([]);
-        setContracts([]);
-        setRentPayments([]);
+        clearWorkspace();
       },
       reloadWorkspace,
       addProperty: async (property) => {
@@ -197,6 +231,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setRentPayments((prev) =>
           prev.filter((payment) => !contractIds.includes(payment.contractId)),
         );
+        setMaintenanceCharges((prev) =>
+          prev.filter((charge) => charge.propertyId !== propertyId),
+        );
       },
       upsertRoom: async (room) => {
         const nextRoom = room.id
@@ -220,6 +257,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
         setRentPayments((prev) =>
           prev.filter((payment) => !contractIds.includes(payment.contractId)),
+        );
+        setMaintenanceCharges((prev) =>
+          prev.map((charge) =>
+            charge.roomId === roomId ? { ...charge, roomId: "" } : charge,
+          ),
         );
       },
       upsertTenant: async (tenant) => {
@@ -296,12 +338,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await deleteRentPaymentApi(paymentId);
         setRentPayments((prev) => prev.filter((payment) => payment.id !== paymentId));
       },
+      generateMonthlyRentPayments: async (month) => {
+        const result = await generateRentPayments(month);
+        setRentPayments((prev) => {
+          const ids = new Set(result.payments.map((payment) => payment.id));
+          return [...result.payments, ...prev.filter((payment) => !ids.has(payment.id))];
+        });
+        return result.createdCount;
+      },
+      upsertMaintenanceCharge: async (charge) => {
+        const nextCharge = charge.id
+          ? await updateMaintenanceChargeApi(charge)
+          : await createMaintenanceCharge(charge);
+        setMaintenanceCharges((prev) => {
+          const exists = prev.some((item) => item.id === nextCharge.id);
+          return exists
+            ? prev.map((item) => (item.id === nextCharge.id ? nextCharge : item))
+            : [nextCharge, ...prev];
+        });
+      },
+      deleteMaintenanceCharge: async (chargeId) => {
+        await deleteMaintenanceChargeApi(chargeId);
+        setMaintenanceCharges((prev) =>
+          prev.filter((charge) => charge.id !== chargeId),
+        );
+      },
     }),
     [
       authError,
       contracts,
       isBootstrapping,
       isDataLoading,
+      maintenanceCharges,
       properties,
       rentPayments,
       rooms,

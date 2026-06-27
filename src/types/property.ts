@@ -21,4 +21,14 @@ export type Property = {
   imageData?: string;
   imageNames?: string[];
   imageDataList?: string[];
+  builtYear?: number;
+  totalFloors?: number;
+  hasElevator?: boolean;
+  parkingAvailable?: boolean;
+  managementType?: string;
+  managerName?: string;
+  managerPhone?: string;
+  memo?: string;
+  documentNames?: string[];
+  documentDataList?: string[];
 };

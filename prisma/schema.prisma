@@ -44,6 +44,12 @@ enum RentStatus {
   LATE
 }
 
+enum MaintenanceChargeStatus {
+  PAID
+  UNPAID
+  LATE
+}
+
 model User {
   id           String        @id @default(uuid())
   email        String        @unique
@@ -55,6 +61,7 @@ model User {
   tenants      Tenant[]
   contracts    Contract[]
   rentPayments RentPayment[]
+  maintenanceCharges MaintenanceCharge[]
 }
 
 model Property {
@@ -67,11 +74,22 @@ model Property {
   imageData String?
   imageNames String[]     @default([])
   imageDataList String[]  @default([])
+  builtYear Int?
+  totalFloors Int?
+  hasElevator Boolean     @default(false)
+  parkingAvailable Boolean @default(false)
+  managementType String?
+  managerName String?
+  managerPhone String?
+  memo String?
+  documentNames String[]    @default([])
+  documentDataList String[] @default([])
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   rooms     Room[]
   contracts Contract[]
+  maintenanceCharges MaintenanceCharge[]
 
   @@index([userId])
 }
@@ -93,6 +111,7 @@ model Room {
   updatedAt      DateTime     @updatedAt
   property       Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   contracts      Contract[]
+  maintenanceCharges MaintenanceCharge[]
 
   @@index([userId])
   @@index([propertyId])
@@ -160,4 +179,27 @@ model RentPayment {
 
   @@index([userId])
   @@index([contractId])
+}
+
+model MaintenanceCharge {
+  id          String                  @id @default(uuid())
+  userId      String
+  propertyId  String
+  roomId      String?
+  title       String
+  billingMonth String
+  dueDate     DateTime
+  amount      Int
+  status      MaintenanceChargeStatus @default(UNPAID)
+  paidDate    DateTime?
+  memo        String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property    Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  room        Room?                   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([propertyId])
+  @@index([roomId])
 }

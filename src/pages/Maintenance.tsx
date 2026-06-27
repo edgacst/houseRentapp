@@ -1,165 +1,135 @@
 import { useMemo, useState } from "react";
 import { useAppData } from "../context/AppContext";
 import MainLayout from "../layouts/MainLayout";
-import type { RentPayment, RentStatus } from "../types/business";
+import type {
+  MaintenanceCharge,
+  MaintenanceChargeStatus,
+} from "../types/business";
 
-const statusText: Record<RentStatus, string> = {
+const statusText: Record<MaintenanceChargeStatus, string> = {
   paid: "납부 완료",
   unpaid: "미납",
   late: "연체",
 };
 
-const statusClass: Record<RentStatus, string> = {
+const statusClass: Record<MaintenanceChargeStatus, string> = {
   paid: "bg-emerald-50 text-emerald-700",
   unpaid: "bg-amber-50 text-amber-700",
   late: "bg-red-50 text-red-700",
 };
 
-export default function Rents() {
+export default function Maintenance() {
   const {
     properties,
     rooms,
-    tenants,
-    contracts,
-    rentPayments,
-    upsertRentPayment,
-    deleteRentPayment,
-    generateMonthlyRentPayments,
+    maintenanceCharges,
+    upsertMaintenanceCharge,
+    deleteMaintenanceCharge,
   } = useAppData();
   const [keyword, setKeyword] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<RentPayment | null>(null);
-  const [form, setForm] = useState<RentPayment>(createEmptyPayment());
-  const [generateMonth, setGenerateMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [notice, setNotice] = useState("");
+  const [editingCharge, setEditingCharge] = useState<MaintenanceCharge | null>(null);
+  const [form, setForm] = useState<MaintenanceCharge>(createEmptyCharge());
 
-  function createEmptyPayment(): RentPayment {
-    const firstContract = contracts[0];
+  function createEmptyCharge(): MaintenanceCharge {
+    const firstProperty = properties[0];
+    const firstRoom = rooms.find((room) => room.propertyId === firstProperty?.id);
+    const now = new Date();
+    const billingMonth = now.toISOString().slice(0, 7);
     return {
       id: "",
-      contractId: firstContract?.id ?? "",
-      dueDate: new Date().toISOString().slice(0, 10),
-      paidDate: "",
-      rentAmount: firstContract?.monthlyRent ?? 0,
-      maintenanceFee: firstContract?.maintenanceFee ?? 0,
+      propertyId: firstProperty?.id ?? "",
+      roomId: firstRoom?.id ?? "",
+      title: "관리비",
+      billingMonth,
+      dueDate: `${billingMonth}-25`,
+      amount: firstRoom?.maintenanceFee ?? 0,
       status: "unpaid",
+      paidDate: "",
       memo: "",
     };
   }
 
-  const filteredPayments = useMemo(() => {
+  const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
+
+  const filteredCharges = useMemo(() => {
     const lowerKeyword = keyword.toLowerCase();
-    return rentPayments.filter((payment) => {
-      const contract = contracts.find((item) => item.id === payment.contractId);
-      const property = properties.find((item) => item.id === contract?.propertyId);
-      const room = rooms.find((item) => item.id === contract?.roomId);
-      const tenant = tenants.find((item) => item.id === contract?.tenantId);
-      return [property?.name, room?.name, tenant?.name, payment.dueDate]
+    return maintenanceCharges.filter((charge) => {
+      const property = properties.find((item) => item.id === charge.propertyId);
+      const room = rooms.find((item) => item.id === charge.roomId);
+      return [property?.name, room?.name, charge.title, charge.billingMonth]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(lowerKeyword));
     });
-  }, [contracts, keyword, properties, rentPayments, rooms, tenants]);
+  }, [keyword, maintenanceCharges, properties, rooms]);
 
-  const paidTotal = rentPayments
-    .filter((payment) => payment.status === "paid")
-    .reduce((sum, payment) => sum + payment.rentAmount + payment.maintenanceFee, 0);
-  const unpaidTotal = rentPayments
-    .filter((payment) => payment.status !== "paid")
-    .reduce((sum, payment) => sum + payment.rentAmount + payment.maintenanceFee, 0);
+  const paidTotal = maintenanceCharges
+    .filter((charge) => charge.status === "paid")
+    .reduce((sum, charge) => sum + charge.amount, 0);
+  const unpaidTotal = maintenanceCharges
+    .filter((charge) => charge.status !== "paid")
+    .reduce((sum, charge) => sum + charge.amount, 0);
 
-  const openForm = (payment?: RentPayment) => {
-    setEditingPayment(payment ?? null);
-    setForm(payment ?? createEmptyPayment());
+  const openForm = (charge?: MaintenanceCharge) => {
+    setEditingCharge(charge ?? null);
+    setForm(charge ?? createEmptyCharge());
     setIsOpen(true);
   };
 
-  const getContractLabel = (contractId: string) => {
-    const contract = contracts.find((item) => item.id === contractId);
-    const property = properties.find((item) => item.id === contract?.propertyId);
-    const room = rooms.find((item) => item.id === contract?.roomId);
-    const tenant = tenants.find((item) => item.id === contract?.tenantId);
-    return `${property?.name ?? "-"} ${room?.name ?? "-"} · ${tenant?.name ?? "-"}`;
+  const closeForm = () => {
+    setEditingCharge(null);
+    setIsOpen(false);
   };
+
+  const getPropertyName = (propertyId: string) =>
+    properties.find((property) => property.id === propertyId)?.name ?? "-";
+
+  const getRoomName = (roomId?: string) =>
+    rooms.find((room) => room.id === roomId)?.name ?? "건물 공통";
 
   return (
     <MainLayout>
       <div className="space-y-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <p className="text-sm font-bold text-blue-600">Rent</p>
+            <p className="text-sm font-bold text-blue-600">Maintenance</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">
-              월세 관리
+              관리비 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              월세와 관리비 청구, 납부, 미납, 연체 상태를 관리합니다.
+              건물 공통 관리비와 호실별 관리비 청구, 납부, 미납 상태를 관리합니다.
             </p>
           </div>
           <button
             onClick={() => openForm()}
-            disabled={contracts.length === 0}
+            disabled={properties.length === 0}
             className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
           >
-            + 월세 등록
+            + 관리비 등록
           </button>
         </div>
 
-        {contracts.length === 0 && (
+        {properties.length === 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            월세 등록 전 진행 중인 계약이 필요합니다.
-          </div>
-        )}
-
-        {notice && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
-            {notice}
+            관리비 등록 전 건물을 먼저 등록하세요.
           </div>
         )}
 
         <div className="grid gap-4 md:grid-cols-4">
-          <SummaryCard label="전체 청구" value={`${rentPayments.length}건`} />
+          <SummaryCard label="전체 청구" value={`${maintenanceCharges.length}건`} />
           <SummaryCard
             label="납부 완료"
-            value={`${rentPayments.filter((item) => item.status === "paid").length}건`}
+            value={`${maintenanceCharges.filter((item) => item.status === "paid").length}건`}
           />
           <SummaryCard label="납부액" value={`${paidTotal.toLocaleString("ko-KR")}원`} />
           <SummaryCard label="미납액" value={`${unpaidTotal.toLocaleString("ko-KR")}원`} />
-        </div>
-
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-black text-blue-900">월세 자동 생성</p>
-              <p className="mt-1 text-xs text-blue-700">
-                선택한 월에 진행 중인 계약 기준으로 미납 청구서를 생성합니다.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                type="month"
-                value={generateMonth}
-                onChange={(event) => setGenerateMonth(event.target.value)}
-                className="rounded-lg border border-blue-200 px-4 py-2 text-sm outline-none focus:border-blue-500"
-              />
-              <button
-                type="button"
-                disabled={contracts.length === 0}
-                onClick={async () => {
-                  const count = await generateMonthlyRentPayments(generateMonth);
-                  setNotice(`${generateMonth} 월세 청구 ${count}건을 생성했습니다.`);
-                }}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                청구 자동 생성
-              </button>
-            </div>
-          </div>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder="건물, 호실, 임차인, 납부 예정일 검색"
+            placeholder="건물, 호실, 청구명, 청구월 검색"
             className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           />
         </div>
@@ -168,48 +138,88 @@ export default function Rents() {
           <form
             onSubmit={async (event) => {
               event.preventDefault();
-              await upsertRentPayment({
+              await upsertMaintenanceCharge({
                 ...form,
                 paidDate:
                   form.status === "paid"
                     ? form.paidDate || new Date().toISOString().slice(0, 10)
                     : "",
               });
-              setIsOpen(false);
-              setEditingPayment(null);
+              closeForm();
             }}
             className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
           >
             <h2 className="mb-5 text-lg font-black text-slate-950">
-              {editingPayment ? "월세 수정" : "월세 등록"}
+              {editingCharge ? "관리비 수정" : "관리비 등록"}
             </h2>
             <div className="grid gap-4 md:grid-cols-3">
               <label className="block">
-                <span className="text-sm font-bold text-slate-700">계약</span>
+                <span className="text-sm font-bold text-slate-700">건물</span>
                 <select
-                  value={form.contractId}
+                  value={form.propertyId}
                   required
                   onChange={(event) => {
-                    const contract = contracts.find(
-                      (item) => item.id === event.target.value,
+                    const firstRoom = rooms.find(
+                      (room) => room.propertyId === event.target.value,
                     );
                     setForm({
                       ...form,
-                      contractId: event.target.value,
-                      rentAmount: contract?.monthlyRent ?? form.rentAmount,
-                      maintenanceFee:
-                        contract?.maintenanceFee ?? form.maintenanceFee,
+                      propertyId: event.target.value,
+                      roomId: firstRoom?.id ?? "",
+                      amount: firstRoom?.maintenanceFee ?? form.amount,
                     });
                   }}
                   className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
                 >
-                  <option value="">선택</option>
-                  {contracts.map((contract) => (
-                    <option key={contract.id} value={contract.id}>
-                      {getContractLabel(contract.id)}
+                  <option value="">건물 선택</option>
+                  {properties.map((property) => (
+                    <option key={property.id} value={property.id}>
+                      {property.name}
                     </option>
                   ))}
                 </select>
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-slate-700">호실</span>
+                <select
+                  value={form.roomId ?? ""}
+                  onChange={(event) => {
+                    const room = rooms.find((item) => item.id === event.target.value);
+                    setForm({
+                      ...form,
+                      roomId: event.target.value,
+                      amount: room?.maintenanceFee ?? form.amount,
+                    });
+                  }}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+                >
+                  <option value="">건물 공통</option>
+                  {availableRooms.map((room) => (
+                    <option key={room.id} value={room.id}>
+                      {room.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <TextField
+                label="청구명"
+                value={form.title}
+                placeholder="예: 6월 관리비"
+                onChange={(value) => setForm({ ...form, title: value })}
+              />
+              <label className="block">
+                <span className="text-sm font-bold text-slate-700">청구월</span>
+                <input
+                  type="month"
+                  value={form.billingMonth}
+                  required
+                  onChange={(event) =>
+                    setForm({ ...form, billingMonth: event.target.value })
+                  }
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+                />
               </label>
               <DateField
                 label="납부 예정일"
@@ -223,25 +233,21 @@ export default function Rents() {
                 onChange={(value) => setForm({ ...form, paidDate: value })}
               />
               <NumberField
-                label="월세"
-                value={form.rentAmount}
-                placeholder="예: 450000"
-                suffix="원"
-                onChange={(value) => setForm({ ...form, rentAmount: value })}
-              />
-              <NumberField
-                label="관리비"
-                value={form.maintenanceFee}
+                label="청구 금액"
+                value={form.amount}
                 placeholder="예: 50000"
                 suffix="원"
-                onChange={(value) => setForm({ ...form, maintenanceFee: value })}
+                onChange={(value) => setForm({ ...form, amount: value })}
               />
               <label className="block">
                 <span className="text-sm font-bold text-slate-700">납부 상태</span>
                 <select
                   value={form.status}
                   onChange={(event) =>
-                    setForm({ ...form, status: event.target.value as RentStatus })
+                    setForm({
+                      ...form,
+                      status: event.target.value as MaintenanceChargeStatus,
+                    })
                   }
                   className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
                 >
@@ -258,49 +264,48 @@ export default function Rents() {
               <textarea
                 value={form.memo}
                 onChange={(event) => setForm({ ...form, memo: event.target.value })}
-                placeholder="입금자명, 부분납, 특이사항을 입력하세요."
+                placeholder="부과 기준, 정산 메모, 참고사항을 입력하세요."
                 rows={3}
                 className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
               />
             </label>
-            <FormActions
-              onCancel={() => {
-                setIsOpen(false);
-                setEditingPayment(null);
-              }}
-            />
+            <FormActions onCancel={closeForm} />
           </form>
         )}
 
         <div className="space-y-3">
-          {filteredPayments.map((payment) => (
+          {filteredCharges.map((charge) => (
             <div
-              key={payment.id}
+              key={charge.id}
               className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h2 className="text-lg font-black text-slate-950">
-                    {getContractLabel(payment.contractId)}
+                    {charge.title}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    납부 예정일 {payment.dueDate} · 납부일 {payment.paidDate || "-"}
+                    {getPropertyName(charge.propertyId)} · {getRoomName(charge.roomId)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {charge.billingMonth} · 납부 예정 {charge.dueDate} · 납부일{" "}
+                    {charge.paidDate || "-"}
                   </p>
                   <p className="mt-2 text-sm font-bold text-slate-700">
-                    {(payment.rentAmount + payment.maintenanceFee).toLocaleString("ko-KR")}원
+                    {charge.amount.toLocaleString("ko-KR")}원
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass[payment.status]}`}
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass[charge.status]}`}
                   >
-                    {statusText[payment.status]}
+                    {statusText[charge.status]}
                   </span>
-                  {payment.status !== "paid" && (
+                  {charge.status !== "paid" && (
                     <button
                       onClick={() =>
-                        void upsertRentPayment({
-                          ...payment,
+                        void upsertMaintenanceCharge({
+                          ...charge,
                           status: "paid",
                           paidDate: new Date().toISOString().slice(0, 10),
                         })
@@ -311,13 +316,13 @@ export default function Rents() {
                     </button>
                   )}
                   <button
-                    onClick={() => openForm(payment)}
+                    onClick={() => openForm(charge)}
                     className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700"
                   >
                     수정
                   </button>
                   <button
-                    onClick={() => void deleteRentPayment(payment.id)}
+                    onClick={() => void deleteMaintenanceCharge(charge.id)}
                     className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600"
                   >
                     삭제
@@ -329,6 +334,31 @@ export default function Rents() {
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-bold text-slate-700">{label}</span>
+      <input
+        value={value}
+        required
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+      />
+    </label>
   );
 }
 

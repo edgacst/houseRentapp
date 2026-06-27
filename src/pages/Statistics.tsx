@@ -5,7 +5,8 @@ import MainLayout from "../layouts/MainLayout";
 const monthLabels = ["1월", "2월", "3월", "4월", "5월", "6월"];
 
 export default function Statistics() {
-  const { properties, rooms, contracts, rentPayments } = useAppData();
+  const { properties, rooms, contracts, rentPayments, maintenanceCharges } =
+    useAppData();
   const occupied = rooms.filter((room) => room.status === "occupied").length;
   const vacant = rooms.filter((room) => room.status === "vacant").length;
   const maintenance = rooms.filter((room) => room.status === "maintenance").length;
@@ -16,12 +17,20 @@ export default function Statistics() {
     (sum, contract) => sum + contract.monthlyRent + contract.maintenanceFee,
     0,
   );
-  const collected = rentPayments
+  const rentCollected = rentPayments
     .filter((payment) => payment.status === "paid")
     .reduce((sum, payment) => sum + payment.rentAmount + payment.maintenanceFee, 0);
-  const unpaid = rentPayments
+  const rentUnpaid = rentPayments
     .filter((payment) => payment.status !== "paid")
     .reduce((sum, payment) => sum + payment.rentAmount + payment.maintenanceFee, 0);
+  const maintenanceCollected = maintenanceCharges
+    .filter((charge) => charge.status === "paid")
+    .reduce((sum, charge) => sum + charge.amount, 0);
+  const maintenanceUnpaid = maintenanceCharges
+    .filter((charge) => charge.status !== "paid")
+    .reduce((sum, charge) => sum + charge.amount, 0);
+  const collected = rentCollected + maintenanceCollected;
+  const unpaid = rentUnpaid + maintenanceUnpaid;
   const collectionRate = collected + unpaid
     ? Math.round((collected / (collected + unpaid)) * 100)
     : 0;
@@ -68,9 +77,9 @@ export default function Statistics() {
   });
 
   const roomStatusSegments = [
-    { label: "임대중", value: occupied, color: "bg-blue-600" },
+    { label: "임대 중", value: occupied, color: "bg-blue-600" },
     { label: "공실", value: vacant, color: "bg-amber-500" },
-    { label: "수리중", value: maintenance, color: "bg-slate-400" },
+    { label: "수리 중", value: maintenance, color: "bg-slate-400" },
   ];
 
   return (
@@ -178,7 +187,7 @@ export default function Statistics() {
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-black text-slate-950">수납 현황</h2>
             <p className="mt-1 text-sm text-slate-500">
-              수납액과 미납액의 비중입니다.
+              월세와 별도 관리비를 합산한 수납 비중입니다.
             </p>
 
             <div className="mt-6 space-y-5">
@@ -195,7 +204,7 @@ export default function Statistics() {
                 color="bg-red-500"
               />
               <ProgressRow
-                label="예상 월수입"
+                label="예상 월수익"
                 value={expectedMonthly}
                 total={Math.max(expectedMonthly, collected + unpaid)}
                 color="bg-blue-600"
@@ -204,15 +213,11 @@ export default function Statistics() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-black text-slate-950">
-                  건물별 성과
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  입주율과 월 예상 수익을 함께 봅니다.
-                </p>
-              </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-950">건물별 성과</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                입주율과 월 예상 수익을 함께 봅니다.
+              </p>
             </div>
 
             <div className="mt-5 space-y-4">
@@ -227,7 +232,7 @@ export default function Statistics() {
                     <div>
                       <p className="font-black text-slate-950">{property.name}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
-                        임대중 {property.occupied} · 공실 {property.vacant} · 전체 {property.total}
+                        임대 중 {property.occupied} · 공실 {property.vacant} · 전체 {property.total}
                       </p>
                     </div>
                     <div className="text-right">

@@ -15,6 +15,16 @@ const emptyPropertyForm: Omit<Property, "id"> = {
   imageData: "",
   imageNames: [],
   imageDataList: [],
+  builtYear: undefined,
+  totalFloors: undefined,
+  hasElevator: false,
+  parkingAvailable: false,
+  managementType: "직접관리",
+  managerName: "",
+  managerPhone: "",
+  memo: "",
+  documentNames: [],
+  documentDataList: [],
 };
 
 function Properties() {
@@ -35,6 +45,8 @@ function Properties() {
 
   const imageNames = form.imageNames ?? [];
   const imageDataList = form.imageDataList ?? [];
+  const documentNames = form.documentNames ?? [];
+  const documentDataList = form.documentDataList ?? [];
 
   const filteredProperties = useMemo(() => {
     const keyword = search.toLowerCase();
@@ -42,7 +54,8 @@ function Properties() {
       (property) =>
         property.name.toLowerCase().includes(keyword) ||
         property.address.toLowerCase().includes(keyword) ||
-        property.type.toLowerCase().includes(keyword),
+        property.type.toLowerCase().includes(keyword) ||
+        property.managerName?.toLowerCase().includes(keyword),
     );
   }, [properties, search]);
 
@@ -72,13 +85,14 @@ function Properties() {
 
     setEditingProperty(property);
     setForm({
-      name: property.name,
-      address: property.address,
-      type: property.type,
+      ...emptyPropertyForm,
+      ...property,
       imageName: nextImageNames[0] ?? "",
       imageData: nextImageDataList[0] ?? "",
       imageNames: nextImageNames,
       imageDataList: nextImageDataList,
+      documentNames: property.documentNames ?? [],
+      documentDataList: property.documentDataList ?? [],
     });
     setInitialRooms("");
     setIsOpen(true);
@@ -93,19 +107,12 @@ function Properties() {
 
   const handleImageChange = async (files?: FileList | null) => {
     if (!files?.length) return;
-
     const roomLeft = Math.max(0, 5 - imageNames.length);
-    const selectedFiles = Array.from(files).slice(0, roomLeft);
-    const nextImages = await Promise.all(
-      selectedFiles.map(async (file) => ({
-        name: file.name,
-        data: await readFileAsDataUrl(file),
-      })),
-    );
-    const nextImageNames = [...imageNames, ...nextImages.map((image) => image.name)];
+    const nextFiles = await filesToDataItems(Array.from(files).slice(0, roomLeft));
+    const nextImageNames = [...imageNames, ...nextFiles.map((file) => file.name)];
     const nextImageDataList = [
       ...imageDataList,
-      ...nextImages.map((image) => image.data),
+      ...nextFiles.map((file) => file.data),
     ];
 
     setForm({
@@ -117,18 +124,38 @@ function Properties() {
     });
   };
 
+  const handleDocumentChange = async (files?: FileList | null) => {
+    if (!files?.length) return;
+    const roomLeft = Math.max(0, 5 - documentNames.length);
+    const nextFiles = await filesToDataItems(Array.from(files).slice(0, roomLeft));
+    setForm({
+      ...form,
+      documentNames: [...documentNames, ...nextFiles.map((file) => file.name)],
+      documentDataList: [...documentDataList, ...nextFiles.map((file) => file.data)],
+    });
+  };
+
   const removeImage = (index: number) => {
     const nextImageNames = imageNames.filter((_, itemIndex) => itemIndex !== index);
     const nextImageDataList = imageDataList.filter(
       (_, itemIndex) => itemIndex !== index,
     );
-
     setForm({
       ...form,
       imageName: nextImageNames[0] ?? "",
       imageData: nextImageDataList[0] ?? "",
       imageNames: nextImageNames,
       imageDataList: nextImageDataList,
+    });
+  };
+
+  const removeDocument = (index: number) => {
+    setForm({
+      ...form,
+      documentNames: documentNames.filter((_, itemIndex) => itemIndex !== index),
+      documentDataList: documentDataList.filter(
+        (_, itemIndex) => itemIndex !== index,
+      ),
     });
   };
 
@@ -140,7 +167,6 @@ function Properties() {
       if (editingProperty) {
         await updateProperty({ ...editingProperty, ...form });
         const roomNames = parseRoomNames(initialRooms);
-
         await Promise.all(
           roomNames.map((roomName) =>
             upsertRoom(createInitialRoom(editingProperty.id, roomName, form.type)),
@@ -149,7 +175,6 @@ function Properties() {
       } else {
         const createdProperty = await addProperty(form);
         const roomNames = parseRoomNames(initialRooms);
-
         await Promise.all(
           roomNames.map((roomName) =>
             upsertRoom(createInitialRoom(createdProperty.id, roomName, form.type)),
@@ -166,7 +191,7 @@ function Properties() {
   const handleDelete = (propertyId: string) => {
     if (
       !window.confirm(
-        "건물을 삭제하면 연결된 호실, 계약, 월세 데이터도 함께 삭제됩니다. 계속할까요?",
+        "건물을 삭제하면 연결된 호실, 계약, 월세, 관리비 데이터도 함께 삭제됩니다. 계속할까요?",
       )
     ) {
       return;
@@ -184,7 +209,7 @@ function Properties() {
               부동산 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              건물 정보, 사진, 초기 호실을 등록하고 임대 관리의 기본 구조를 만듭니다.
+              건물 정보, 사진, 문서, 초기 호실을 등록하고 운영 기준을 관리합니다.
             </p>
           </div>
           <button
@@ -205,7 +230,7 @@ function Properties() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="건물명, 주소, 유형으로 검색"
+            placeholder="건물명, 주소, 유형, 관리인으로 검색"
             className="w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
           />
         </div>
@@ -215,92 +240,149 @@ function Properties() {
             <h2 className="text-xl font-black text-slate-950">
               {editingProperty ? "건물 수정" : "건물 등록"}
             </h2>
-            <form onSubmit={handleSubmit} className="mt-5 grid gap-4">
-              <FormInput
-                label="건물명"
-                value={form.name}
-                placeholder="예: 강남 오피스텔"
-                onChange={(value) => setForm({ ...form, name: value })}
-              />
-              <FormInput
-                label="주소"
-                value={form.address}
-                placeholder="예: 서울 강남구 테헤란로 100"
-                onChange={(value) => setForm({ ...form, address: value })}
-              />
-              <div>
-                <label className="text-sm font-bold text-slate-700">유형</label>
-                <select
-                  value={form.type}
-                  onChange={(event) =>
-                    setForm({ ...form, type: event.target.value as PropertyType })
-                  }
-                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
-                >
-                  {propertyTypes.map((type) => (
-                    <option key={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-4">
-                <div className="flex items-center justify-between gap-3">
+            <form onSubmit={handleSubmit} className="mt-5 grid gap-5">
+              <Section title="기본 정보">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormInput
+                    label="건물명"
+                    value={form.name}
+                    placeholder="예: 강남 오피스텔"
+                    onChange={(value) => setForm({ ...form, name: value })}
+                  />
+                  <FormInput
+                    label="주소"
+                    value={form.address}
+                    placeholder="예: 서울 강남구 테헤란로 100"
+                    onChange={(value) => setForm({ ...form, address: value })}
+                  />
                   <div>
-                    <label className="text-sm font-bold text-slate-700">
-                      건물 사진
-                    </label>
-                    <p className="mt-1 text-xs text-slate-500">
-                      최대 5장까지 저장됩니다. 첫 번째 사진이 카드 대표 이미지로 표시됩니다.
-                    </p>
+                    <label className="text-sm font-bold text-slate-700">유형</label>
+                    <select
+                      value={form.type}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          type: event.target.value as PropertyType,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
+                    >
+                      {propertyTypes.map((type) => (
+                        <option key={type}>{type}</option>
+                      ))}
+                    </select>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                    {imageNames.length}/5장
-                  </span>
+                  <NumberInput
+                    label="준공년도"
+                    value={form.builtYear}
+                    placeholder="예: 2018"
+                    onChange={(value) => setForm({ ...form, builtYear: value })}
+                  />
+                  <NumberInput
+                    label="총 층수"
+                    value={form.totalFloors}
+                    placeholder="예: 12"
+                    onChange={(value) => setForm({ ...form, totalFloors: value })}
+                  />
+                  <FormInput
+                    label="관리 방식"
+                    value={form.managementType ?? ""}
+                    placeholder="예: 직접관리, 위탁관리"
+                    onChange={(value) => setForm({ ...form, managementType: value })}
+                  />
                 </div>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/png,image/jpeg,image/webp"
-                  disabled={imageNames.length >= 5}
-                  onChange={(event) => void handleImageChange(event.target.files)}
-                  className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                />
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <Toggle
+                    label="엘리베이터 있음"
+                    checked={Boolean(form.hasElevator)}
+                    onChange={(checked) => setForm({ ...form, hasElevator: checked })}
+                  />
+                  <Toggle
+                    label="주차 가능"
+                    checked={Boolean(form.parkingAvailable)}
+                    onChange={(checked) =>
+                      setForm({ ...form, parkingAvailable: checked })
+                    }
+                  />
+                </div>
+              </Section>
 
+              <Section title="관리 담당자">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormInput
+                    label="관리인/담당자"
+                    value={form.managerName ?? ""}
+                    placeholder="예: 홍길동"
+                    required={false}
+                    onChange={(value) => setForm({ ...form, managerName: value })}
+                  />
+                  <FormInput
+                    label="담당자 전화번호"
+                    value={form.managerPhone ?? ""}
+                    placeholder="예: 010-1234-5678"
+                    required={false}
+                    onChange={(value) => setForm({ ...form, managerPhone: value })}
+                  />
+                </div>
+                <label className="mt-4 block">
+                  <span className="text-sm font-bold text-slate-700">건물 메모</span>
+                  <textarea
+                    value={form.memo ?? ""}
+                    onChange={(event) => setForm({ ...form, memo: event.target.value })}
+                    rows={3}
+                    placeholder="공과금 정산 방식, 특이사항, 관리 기준을 입력하세요."
+                    className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                  />
+                </label>
+              </Section>
+
+              <FileSection
+                title="건물 사진"
+                description="최대 5장까지 저장됩니다. 첫 번째 사진이 카드 대표 이미지로 표시됩니다."
+                count={`${imageNames.length}/5장`}
+                accept="image/png,image/jpeg,image/webp"
+                disabled={imageNames.length >= 5}
+                onChange={handleImageChange}
+              >
                 {imageNames.length > 0 && (
                   <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                     {imageNames.map((name, index) => (
-                      <div
+                      <FilePreviewCard
                         key={`${name}-${index}`}
-                        className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-                      >
-                        <img
-                          src={imageDataList[index]}
-                          alt={`${name} 미리보기`}
-                          className="h-24 w-full object-cover"
-                        />
-                        <div className="p-3">
-                          <p className="truncate text-xs font-bold text-slate-700">
-                            {name}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="mt-2 text-xs font-bold text-red-600"
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </div>
+                        name={name}
+                        data={imageDataList[index]}
+                        isImage
+                        onRemove={() => removeImage(index)}
+                      />
                     ))}
                   </div>
                 )}
-              </div>
+              </FileSection>
 
-              <div className="rounded-lg bg-slate-50 p-4">
-                <label className="text-sm font-black text-slate-950">
-                  {editingProperty ? "추가 호실" : "초기 호실 일괄 등록"}
-                </label>
-                <p className="mt-1 text-xs text-slate-500">
+              <FileSection
+                title="건물 문서"
+                description="등기부등본, 건축물대장, 사업자등록증 등 문서를 최대 5개까지 보관합니다."
+                count={`${documentNames.length}/5개`}
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                disabled={documentNames.length >= 5}
+                onChange={handleDocumentChange}
+              >
+                {documentNames.length > 0 && (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    {documentNames.map((name, index) => (
+                      <FilePreviewCard
+                        key={`${name}-${index}`}
+                        name={name}
+                        data={documentDataList[index]}
+                        onRemove={() => removeDocument(index)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </FileSection>
+
+              <Section title={editingProperty ? "추가 호실" : "초기 호실 일괄 등록"}>
+                <p className="text-xs text-slate-500">
                   호실명을 쉼표나 줄바꿈으로 입력하세요. 예: 101호, 102호, 201호
                 </p>
                 <textarea
@@ -310,7 +392,7 @@ function Properties() {
                   placeholder={"101호, 102호, 201호\n또는\nB101, 1층 상가"}
                   className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
-              </div>
+              </Section>
 
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
                 <p className="font-bold">호실 관리는 무엇인가요?</p>
@@ -351,15 +433,116 @@ function Properties() {
   );
 }
 
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border border-slate-200 p-4">
+      <h3 className="text-sm font-black text-slate-950">{title}</h3>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function FileSection({
+  title,
+  description,
+  count,
+  accept,
+  disabled,
+  children,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  count: string;
+  accept: string;
+  disabled: boolean;
+  children: React.ReactNode;
+  onChange: (files?: FileList | null) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-slate-200 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-black text-slate-950">{title}</h3>
+          <p className="mt-1 text-xs text-slate-500">{description}</p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+          {count}
+        </span>
+      </div>
+      <input
+        type="file"
+        multiple
+        accept={accept}
+        disabled={disabled}
+        onChange={(event) => void onChange(event.target.files)}
+        className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+      />
+      {children}
+    </section>
+  );
+}
+
+function FilePreviewCard({
+  name,
+  data,
+  isImage,
+  onRemove,
+}: {
+  name: string;
+  data: string;
+  isImage?: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      {isImage ? (
+        <img src={data} alt={`${name} 미리보기`} className="h-24 w-full object-cover" />
+      ) : (
+        <div className="grid h-24 place-items-center bg-slate-50 text-xs font-black text-slate-400">
+          문서
+        </div>
+      )}
+      <div className="p-3">
+        <p className="truncate text-xs font-bold text-slate-700">{name}</p>
+        {data && !isImage && (
+          <a
+            href={data}
+            download={name}
+            className="mt-2 inline-flex text-xs font-bold text-blue-600"
+          >
+            내려받기
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          className="ml-3 mt-2 text-xs font-bold text-red-600"
+        >
+          삭제
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function FormInput({
   label,
   value,
   placeholder,
+  required = true,
   onChange,
 }: {
   label: string;
   value: string;
   placeholder: string;
+  required?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -368,11 +551,60 @@ function FormInput({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        required
+        required={required}
         placeholder={placeholder}
         className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
       />
     </div>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value?: number;
+  placeholder: string;
+  onChange: (value: number | undefined) => void;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <input
+        type="number"
+        value={value ?? ""}
+        onChange={(event) =>
+          onChange(event.target.value ? Number(event.target.value) : undefined)
+        }
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
+      />
+    </div>
+  );
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
+      <span className="text-sm font-bold text-slate-700">{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-5 w-5"
+      />
+    </label>
   );
 }
 
@@ -430,6 +662,15 @@ function inferFloor(roomName: string) {
   const numeric = match[0];
   if (numeric.length >= 3) return Number(numeric.slice(0, -2)) || 1;
   return Number(numeric[0]) || 1;
+}
+
+async function filesToDataItems(files: File[]) {
+  return Promise.all(
+    files.map(async (file) => ({
+      name: file.name,
+      data: await readFileAsDataUrl(file),
+    })),
+  );
 }
 
 function readFileAsDataUrl(file: File) {
