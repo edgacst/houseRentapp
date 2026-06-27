@@ -46,7 +46,7 @@ type AppContextValue = {
   ) => Promise<void>;
   logout: () => void;
   reloadWorkspace: () => Promise<void>;
-  addProperty: (property: Omit<Property, "id">) => void;
+  addProperty: (property: Omit<Property, "id">) => Promise<Property>;
   updateProperty: (property: Property) => void;
   deleteProperty: (propertyId: string) => void;
   upsertRoom: (room: Room) => void;
@@ -146,6 +146,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addProperty: async (property) => {
         const created = await createProperty(property);
         setProperties((prev) => [created, ...prev]);
+        return created;
       },
       updateProperty: async (property) => {
         const updated = await updatePropertyApi(property);
