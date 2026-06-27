@@ -58,11 +58,11 @@ type AppContextValue = {
   logout: () => void;
   reloadWorkspace: () => Promise<void>;
   addProperty: (property: Omit<Property, "id">) => Promise<Property>;
-  updateProperty: (property: Property) => void;
-  deleteProperty: (propertyId: string) => void;
-  upsertRoom: (room: Room) => void;
-  deleteRoom: (roomId: string) => void;
-  upsertTenant: (tenant: Tenant) => Promise<void>;
+  updateProperty: (property: Property) => Promise<void>;
+  deleteProperty: (propertyId: string) => Promise<void>;
+  upsertRoom: (room: Room) => Promise<void>;
+  deleteRoom: (roomId: string) => Promise<void>;
+  upsertTenant: (tenant: Tenant) => Promise<Tenant>;
   deleteTenant: (tenantId: string) => Promise<void>;
   upsertContract: (contract: Contract) => Promise<void>;
   deleteContract: (contractId: string) => Promise<void>;
@@ -155,6 +155,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(response.user);
         setProperties([]);
         setRooms([]);
+        setTenants([]);
+        setContracts([]);
+        setRentPayments([]);
       },
       logout: () => {
         clearStoredToken();
@@ -229,6 +232,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ? prev.map((item) => (item.id === nextTenant.id ? nextTenant : item))
             : [nextTenant, ...prev];
         });
+        return nextTenant;
       },
       deleteTenant: async (tenantId) => {
         const contractIds = contracts

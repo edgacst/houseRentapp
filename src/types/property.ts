@@ -17,4 +17,6 @@ export type Property = {
   name: string;
   address: string;
   type: PropertyType;
+  imageName?: string;
+  imageData?: string;
 };

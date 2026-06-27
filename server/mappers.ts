@@ -1,11 +1,11 @@
 import type { Contract, Property, RentPayment, Room, Tenant } from "@prisma/client";
 
 const propertyTypeToDb = {
-  "오피스텔": "OFFICETEL",
-  "빌라": "VILLA",
-  "상가": "STORE",
-  "아파트": "APARTMENT",
-  "원룸": "STUDIO",
+  오피스텔: "OFFICETEL",
+  빌라: "VILLA",
+  상가: "STORE",
+  아파트: "APARTMENT",
+  원룸: "STUDIO",
 } as const;
 
 const propertyTypeFromDb = {
@@ -17,12 +17,12 @@ const propertyTypeFromDb = {
 } as const;
 
 const roomTypeToDb = {
-  "원룸": "STUDIO",
-  "투룸": "TWO_ROOM",
-  "쓰리룸": "THREE_ROOM",
-  "오피스텔": "OFFICETEL",
-  "상가": "STORE",
-  "사무실": "OFFICE",
+  원룸: "STUDIO",
+  투룸: "TWO_ROOM",
+  쓰리룸: "THREE_ROOM",
+  오피스텔: "OFFICETEL",
+  상가: "STORE",
+  사무실: "OFFICE",
 } as const;
 
 const roomTypeFromDb = {
@@ -84,6 +84,8 @@ export function toApiProperty(property: Property) {
     name: property.name,
     address: property.address,
     type: propertyTypeFromDb[property.type],
+    imageName: property.imageName ?? "",
+    imageData: property.imageData ?? "",
   };
 }
 
@@ -139,6 +141,8 @@ export function toApiContract(contract: Contract) {
     paymentDay: contract.paymentDay,
     status: contractStatusFromDb[contract.status],
     memo: contract.memo ?? "",
+    attachmentName: contract.attachmentName ?? "",
+    attachmentData: contract.attachmentData ?? "",
   };
 }
 

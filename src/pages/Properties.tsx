@@ -7,6 +7,14 @@ import type { Room } from "../types/room";
 
 const propertyTypes: PropertyType[] = ["오피스텔", "빌라", "상가", "아파트", "원룸"];
 
+const emptyPropertyForm: Omit<Property, "id"> = {
+  name: "",
+  address: "",
+  type: "오피스텔",
+  imageName: "",
+  imageData: "",
+};
+
 function Properties() {
   const {
     properties,
@@ -19,11 +27,7 @@ function Properties() {
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-  const [form, setForm] = useState<Omit<Property, "id">>({
-    name: "",
-    address: "",
-    type: "오피스텔",
-  });
+  const [form, setForm] = useState<Omit<Property, "id">>(emptyPropertyForm);
   const [initialRooms, setInitialRooms] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -42,7 +46,7 @@ function Properties() {
 
   const openCreateForm = () => {
     setEditingProperty(null);
-    setForm({ name: "", address: "", type: "오피스텔" });
+    setForm(emptyPropertyForm);
     setInitialRooms("");
     setIsOpen(true);
   };
@@ -53,6 +57,8 @@ function Properties() {
       name: property.name,
       address: property.address,
       type: property.type,
+      imageName: property.imageName ?? "",
+      imageData: property.imageData ?? "",
     });
     setInitialRooms("");
     setIsOpen(true);
@@ -60,9 +66,15 @@ function Properties() {
 
   const closeForm = () => {
     setEditingProperty(null);
-    setForm({ name: "", address: "", type: "오피스텔" });
+    setForm(emptyPropertyForm);
     setInitialRooms("");
     setIsOpen(false);
+  };
+
+  const handleImageChange = async (file?: File) => {
+    if (!file) return;
+    const imageData = await readFileAsDataUrl(file);
+    setForm({ ...form, imageName: file.name, imageData });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -99,12 +111,12 @@ function Properties() {
   const handleDelete = (propertyId: string) => {
     if (
       !window.confirm(
-        "건물을 삭제하면 연결된 호실, 계약, 월세도 삭제됩니다. 계속할까요?",
+        "건물을 삭제하면 연결된 호실, 계약, 월세 데이터도 함께 삭제됩니다. 계속할까요?",
       )
     ) {
       return;
     }
-    deleteProperty(propertyId);
+    void deleteProperty(propertyId);
   };
 
   return (
@@ -117,7 +129,7 @@ function Properties() {
               부동산 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              건물을 등록하고, 초기 호실을 함께 만들어 임대 관리의 기본 구조를 잡습니다.
+              건물 정보, 대표 이미지, 초기 호실을 등록하고 임대 관리의 기본 구조를 만듭니다.
             </p>
           </div>
           <button
@@ -176,14 +188,47 @@ function Properties() {
                 </select>
               </div>
 
+              <div className="rounded-lg border border-slate-200 p-4">
+                <label className="text-sm font-bold text-slate-700">
+                  건물 대표 이미지
+                </label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) => void handleImageChange(event.target.files?.[0])}
+                  className="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white"
+                />
+                {form.imageData && (
+                  <div className="mt-3 flex items-center gap-4">
+                    <img
+                      src={form.imageData}
+                      alt="건물 대표 이미지 미리보기"
+                      className="h-24 w-32 rounded-lg object-cover"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">
+                        {form.imageName}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm({ ...form, imageName: "", imageData: "" })
+                        }
+                        className="mt-2 text-sm font-bold text-red-600"
+                      >
+                        이미지 제거
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-lg bg-slate-50 p-4">
                 <label className="text-sm font-black text-slate-950">
-                  {editingProperty ? "추가 호실" : "초기 호실"}
+                  {editingProperty ? "추가 호실" : "초기 호실 일괄 등록"}
                 </label>
                 <p className="mt-1 text-xs text-slate-500">
-                  {editingProperty
-                    ? "이 건물에 새로 추가할 호실을 입력하세요. 기존 호실은 호실관리에서 수정합니다."
-                    : "건물 저장과 동시에 만들 호실을 입력하세요. 쉼표나 줄바꿈으로 구분합니다."}
+                  호실명을 쉼표나 줄바꿈으로 입력하세요. 예: 101호, 102호, 201호
                 </p>
                 <textarea
                   value={initialRooms}
@@ -195,10 +240,10 @@ function Properties() {
               </div>
 
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
-                <p className="font-bold">호실관리는 무엇인가요?</p>
+                <p className="font-bold">호실 관리는 무엇인가요?</p>
                 <p className="mt-1">
-                  건물 등록에서 호실 이름을 빠르게 만들고, 호실관리에서 보증금,
-                  월세, 관리비, 면적, 공실 상태를 세부 수정합니다.
+                  건물 등록 시 호실 이름만 빠르게 만들고, 호실관리에서 보증금, 월세,
+                  관리비, 면적, 공실 상태를 자세히 수정합니다.
                 </p>
               </div>
 
@@ -290,7 +335,12 @@ function createInitialRoom(
     propertyId,
     name,
     floor: inferFloor(name),
-    type: propertyType === "상가" ? "상가" : propertyType === "오피스텔" ? "오피스텔" : "원룸",
+    type:
+      propertyType === "상가"
+        ? "상가"
+        : propertyType === "오피스텔"
+          ? "오피스텔"
+          : "원룸",
     status: "vacant",
     deposit: 0,
     monthlyRent: 0,
@@ -307,6 +357,15 @@ function inferFloor(roomName: string) {
   const numeric = match[0];
   if (numeric.length >= 3) return Number(numeric.slice(0, -2)) || 1;
   return Number(numeric[0]) || 1;
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 export default Properties;

@@ -63,6 +63,8 @@ export async function updatePropertyApi(property: Property) {
       name: property.name,
       address: property.address,
       type: property.type,
+      imageName: property.imageName,
+      imageData: property.imageData,
     }),
   });
 }
@@ -229,6 +231,8 @@ function toContractPayload(contract: Contract) {
     paymentDay: contract.paymentDay,
     status: contract.status,
     memo: contract.memo,
+    attachmentName: contract.attachmentName,
+    attachmentData: contract.attachmentData,
   };
 }
 

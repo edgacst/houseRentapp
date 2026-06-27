@@ -21,6 +21,8 @@ export type Contract = {
   paymentDay: number;
   status: ContractStatus;
   memo?: string;
+  attachmentName?: string;
+  attachmentData?: string;
 };
 
 export type RentStatus = "paid" | "unpaid" | "late";

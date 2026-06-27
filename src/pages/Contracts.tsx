@@ -4,7 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 import type { Contract, ContractStatus } from "../types/business";
 
 const statusText: Record<ContractStatus, string> = {
-  active: "진행중",
+  active: "진행 중",
   scheduled: "예정",
   expired: "만료",
   terminated: "해지",
@@ -23,6 +23,8 @@ const emptyContract: Contract = {
   paymentDay: 5,
   status: "active",
   memo: "",
+  attachmentName: "",
+  attachmentData: "",
 };
 
 export default function Contracts() {
@@ -90,6 +92,12 @@ export default function Contracts() {
     });
   };
 
+  const handleAttachmentChange = async (file?: File) => {
+    if (!file) return;
+    const attachmentData = await readFileAsDataUrl(file);
+    setForm({ ...form, attachmentName: file.name, attachmentData });
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -100,7 +108,7 @@ export default function Contracts() {
               계약 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              건물, 호실, 임차인을 연결해 임대차 계약과 납부 조건을 관리합니다.
+              건물, 호실, 임차인을 연결하고 계약 기간, 보증금, 월세, 계약서 첨부를 관리합니다.
             </p>
           </div>
           <button
@@ -121,7 +129,7 @@ export default function Contracts() {
         <div className="grid gap-4 md:grid-cols-4">
           <SummaryCard label="전체 계약" value={`${contracts.length}건`} />
           <SummaryCard
-            label="진행중"
+            label="진행 중"
             value={`${contracts.filter((item) => item.status === "active").length}건`}
           />
           <SummaryCard
@@ -141,7 +149,7 @@ export default function Contracts() {
           <input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder="건물, 호실, 임차인 검색"
+            placeholder="건물, 호실, 임차인으로 검색"
             className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           />
         </div>
@@ -183,7 +191,7 @@ export default function Contracts() {
                 value={form.roomId}
                 onChange={handleRoomChange}
                 options={availableRooms.map((room) => ({
-                  label: `${room.name} (${room.status === "vacant" ? "공실" : "사용중"})`,
+                  label: `${room.name} (${room.status === "vacant" ? "공실" : "사용 중"})`,
                   value: room.id,
                 }))}
               />
@@ -246,6 +254,41 @@ export default function Contracts() {
                 }))}
               />
             </div>
+
+            <div className="mt-4 rounded-lg border border-slate-200 p-4">
+              <label className="text-sm font-bold text-slate-700">
+                계약서 첨부
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                onChange={(event) =>
+                  void handleAttachmentChange(event.target.files?.[0])
+                }
+                className="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white"
+              />
+              {form.attachmentName && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3">
+                  <p className="text-sm font-bold text-slate-800">
+                    {form.attachmentName}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        attachmentName: "",
+                        attachmentData: "",
+                      })
+                    }
+                    className="text-sm font-bold text-red-600"
+                  >
+                    첨부 제거
+                  </button>
+                </div>
+              )}
+            </div>
+
             <label className="mt-4 block">
               <span className="text-sm font-bold text-slate-700">메모</span>
               <textarea
@@ -282,6 +325,15 @@ export default function Contracts() {
                       보증금 {contract.deposit.toLocaleString("ko-KR")}원 · 월{" "}
                       {(contract.monthlyRent + contract.maintenanceFee).toLocaleString("ko-KR")}원
                     </p>
+                    {contract.attachmentName && contract.attachmentData && (
+                      <a
+                        href={contract.attachmentData}
+                        download={contract.attachmentName}
+                        className="mt-2 inline-flex text-sm font-bold text-blue-600 hover:text-blue-700"
+                      >
+                        계약서 내려받기: {contract.attachmentName}
+                      </a>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
@@ -438,4 +490,13 @@ function nextYearDate() {
   const date = new Date();
   date.setFullYear(date.getFullYear() + 1);
   return date.toISOString().slice(0, 10);
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }

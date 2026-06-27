@@ -94,6 +94,8 @@ const propertySchema = z.object({
   name: z.string().min(1),
   address: z.string().min(1),
   type: z.enum(["오피스텔", "빌라", "상가", "아파트", "원룸"]),
+  imageName: z.string().optional(),
+  imageData: z.string().optional(),
 });
 
 app.get("/api/properties", requireAuth, async (req, res) => {
@@ -114,6 +116,8 @@ app.post("/api/properties", requireAuth, async (req, res) => {
       name: result.data.name,
       address: result.data.address,
       type: toDbPropertyType(result.data.type),
+      imageName: result.data.imageName,
+      imageData: result.data.imageData,
     },
   });
 
@@ -131,6 +135,8 @@ app.put("/api/properties/:id", requireAuth, async (req, res) => {
       name: result.data.name,
       address: result.data.address,
       type: toDbPropertyType(result.data.type),
+      imageName: result.data.imageName,
+      imageData: result.data.imageData,
     },
   });
   if (updated.count === 0) return res.status(404).json({ message: "건물을 찾을 수 없습니다." });
@@ -314,6 +320,8 @@ const contractSchema = z.object({
   paymentDay: z.number().int().min(1).max(31),
   status: z.enum(["active", "scheduled", "expired", "terminated"]),
   memo: z.string().optional(),
+  attachmentName: z.string().optional(),
+  attachmentData: z.string().optional(),
 });
 
 app.get("/api/contracts", requireAuth, async (req, res) => {
@@ -351,6 +359,8 @@ app.post("/api/contracts", requireAuth, async (req, res) => {
       paymentDay: result.data.paymentDay,
       status: toDbContractStatus(result.data.status),
       memo: result.data.memo,
+      attachmentName: result.data.attachmentName,
+      attachmentData: result.data.attachmentData,
     },
   });
   await prisma.room.updateMany({
@@ -379,6 +389,8 @@ app.put("/api/contracts/:id", requireAuth, async (req, res) => {
       paymentDay: result.data.paymentDay,
       status: toDbContractStatus(result.data.status),
       memo: result.data.memo,
+      attachmentName: result.data.attachmentName,
+      attachmentData: result.data.attachmentData,
     },
   });
   if (updated.count === 0) return res.status(404).json({ message: "계약을 찾을 수 없습니다." });
