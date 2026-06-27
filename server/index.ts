@@ -6,8 +6,13 @@ import { z } from "zod";
 import { requireAuth, signToken } from "./auth.js";
 import {
   toApiProperty,
+  toApiContract,
+  toApiRentPayment,
   toApiRoom,
+  toApiTenant,
+  toDbContractStatus,
   toDbPropertyType,
+  toDbRentStatus,
   toDbRoomStatus,
   toDbRoomType,
 } from "./mappers.js";
@@ -232,6 +237,240 @@ app.delete("/api/rooms/:id", requireAuth, async (req, res) => {
     where: { id, userId: req.userId },
   });
   if (deleted.count === 0) return res.status(404).json({ message: "호실을 찾을 수 없습니다." });
+  res.status(204).send();
+});
+
+const tenantSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().min(1),
+  email: z.string().optional(),
+  memo: z.string().optional(),
+});
+
+app.get("/api/tenants", requireAuth, async (req, res) => {
+  const tenants = await prisma.tenant.findMany({
+    where: { userId: req.userId },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(tenants.map(toApiTenant));
+});
+
+app.post("/api/tenants", requireAuth, async (req, res) => {
+  const result = tenantSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+
+  const tenant = await prisma.tenant.create({
+    data: {
+      userId: req.userId!,
+      name: result.data.name,
+      phone: result.data.phone,
+      email: result.data.email,
+      memo: result.data.memo,
+    },
+  });
+  res.status(201).json(toApiTenant(tenant));
+});
+
+app.put("/api/tenants/:id", requireAuth, async (req, res) => {
+  const result = tenantSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+  const id = String(req.params.id);
+
+  const updated = await prisma.tenant.updateMany({
+    where: { id, userId: req.userId },
+    data: {
+      name: result.data.name,
+      phone: result.data.phone,
+      email: result.data.email,
+      memo: result.data.memo,
+    },
+  });
+  if (updated.count === 0) return res.status(404).json({ message: "임차인을 찾을 수 없습니다." });
+
+  const tenant = await prisma.tenant.findFirstOrThrow({
+    where: { id, userId: req.userId },
+  });
+  res.json(toApiTenant(tenant));
+});
+
+app.delete("/api/tenants/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const deleted = await prisma.tenant.deleteMany({
+    where: { id, userId: req.userId },
+  });
+  if (deleted.count === 0) return res.status(404).json({ message: "임차인을 찾을 수 없습니다." });
+  res.status(204).send();
+});
+
+const contractSchema = z.object({
+  propertyId: z.string().min(1),
+  roomId: z.string().min(1),
+  tenantId: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  deposit: z.number().int().nonnegative(),
+  monthlyRent: z.number().int().nonnegative(),
+  maintenanceFee: z.number().int().nonnegative(),
+  paymentDay: z.number().int().min(1).max(31),
+  status: z.enum(["active", "scheduled", "expired", "terminated"]),
+  memo: z.string().optional(),
+});
+
+app.get("/api/contracts", requireAuth, async (req, res) => {
+  const contracts = await prisma.contract.findMany({
+    where: { userId: req.userId },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(contracts.map(toApiContract));
+});
+
+app.post("/api/contracts", requireAuth, async (req, res) => {
+  const result = contractSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+
+  const [property, room, tenant] = await Promise.all([
+    prisma.property.findFirst({ where: { id: result.data.propertyId, userId: req.userId } }),
+    prisma.room.findFirst({ where: { id: result.data.roomId, userId: req.userId } }),
+    prisma.tenant.findFirst({ where: { id: result.data.tenantId, userId: req.userId } }),
+  ]);
+  if (!property || !room || !tenant) {
+    return res.status(404).json({ message: "건물, 호실, 임차인 정보를 확인하세요." });
+  }
+
+  const contract = await prisma.contract.create({
+    data: {
+      userId: req.userId!,
+      propertyId: result.data.propertyId,
+      roomId: result.data.roomId,
+      tenantId: result.data.tenantId,
+      startDate: new Date(result.data.startDate),
+      endDate: new Date(result.data.endDate),
+      deposit: result.data.deposit,
+      monthlyRent: result.data.monthlyRent,
+      maintenanceFee: result.data.maintenanceFee,
+      paymentDay: result.data.paymentDay,
+      status: toDbContractStatus(result.data.status),
+      memo: result.data.memo,
+    },
+  });
+  await prisma.room.updateMany({
+    where: { id: result.data.roomId, userId: req.userId },
+    data: { status: result.data.status === "active" ? "OCCUPIED" : room.status },
+  });
+  res.status(201).json(toApiContract(contract));
+});
+
+app.put("/api/contracts/:id", requireAuth, async (req, res) => {
+  const result = contractSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+  const id = String(req.params.id);
+
+  const updated = await prisma.contract.updateMany({
+    where: { id, userId: req.userId },
+    data: {
+      propertyId: result.data.propertyId,
+      roomId: result.data.roomId,
+      tenantId: result.data.tenantId,
+      startDate: new Date(result.data.startDate),
+      endDate: new Date(result.data.endDate),
+      deposit: result.data.deposit,
+      monthlyRent: result.data.monthlyRent,
+      maintenanceFee: result.data.maintenanceFee,
+      paymentDay: result.data.paymentDay,
+      status: toDbContractStatus(result.data.status),
+      memo: result.data.memo,
+    },
+  });
+  if (updated.count === 0) return res.status(404).json({ message: "계약을 찾을 수 없습니다." });
+
+  const contract = await prisma.contract.findFirstOrThrow({
+    where: { id, userId: req.userId },
+  });
+  res.json(toApiContract(contract));
+});
+
+app.delete("/api/contracts/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const deleted = await prisma.contract.deleteMany({
+    where: { id, userId: req.userId },
+  });
+  if (deleted.count === 0) return res.status(404).json({ message: "계약을 찾을 수 없습니다." });
+  res.status(204).send();
+});
+
+const rentPaymentSchema = z.object({
+  contractId: z.string().min(1),
+  dueDate: z.string().min(1),
+  paidDate: z.string().optional(),
+  rentAmount: z.number().int().nonnegative(),
+  maintenanceFee: z.number().int().nonnegative(),
+  status: z.enum(["paid", "unpaid", "late"]),
+  memo: z.string().optional(),
+});
+
+app.get("/api/rent-payments", requireAuth, async (req, res) => {
+  const payments = await prisma.rentPayment.findMany({
+    where: { userId: req.userId },
+    orderBy: { dueDate: "desc" },
+  });
+  res.json(payments.map(toApiRentPayment));
+});
+
+app.post("/api/rent-payments", requireAuth, async (req, res) => {
+  const result = rentPaymentSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+
+  const contract = await prisma.contract.findFirst({
+    where: { id: result.data.contractId, userId: req.userId },
+  });
+  if (!contract) return res.status(404).json({ message: "계약을 찾을 수 없습니다." });
+
+  const payment = await prisma.rentPayment.create({
+    data: {
+      userId: req.userId!,
+      contractId: result.data.contractId,
+      dueDate: new Date(result.data.dueDate),
+      paidDate: result.data.paidDate ? new Date(result.data.paidDate) : null,
+      rentAmount: result.data.rentAmount,
+      maintenanceFee: result.data.maintenanceFee,
+      status: toDbRentStatus(result.data.status),
+      memo: result.data.memo,
+    },
+  });
+  res.status(201).json(toApiRentPayment(payment));
+});
+
+app.put("/api/rent-payments/:id", requireAuth, async (req, res) => {
+  const result = rentPaymentSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+  const id = String(req.params.id);
+
+  const updated = await prisma.rentPayment.updateMany({
+    where: { id, userId: req.userId },
+    data: {
+      contractId: result.data.contractId,
+      dueDate: new Date(result.data.dueDate),
+      paidDate: result.data.paidDate ? new Date(result.data.paidDate) : null,
+      rentAmount: result.data.rentAmount,
+      maintenanceFee: result.data.maintenanceFee,
+      status: toDbRentStatus(result.data.status),
+      memo: result.data.memo,
+    },
+  });
+  if (updated.count === 0) return res.status(404).json({ message: "월세 내역을 찾을 수 없습니다." });
+
+  const payment = await prisma.rentPayment.findFirstOrThrow({
+    where: { id, userId: req.userId },
+  });
+  res.json(toApiRentPayment(payment));
+});
+
+app.delete("/api/rent-payments/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const deleted = await prisma.rentPayment.deleteMany({
+    where: { id, userId: req.userId },
+  });
+  if (deleted.count === 0) return res.status(404).json({ message: "월세 내역을 찾을 수 없습니다." });
   res.status(204).send();
 });
 

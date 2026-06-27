@@ -1,4 +1,4 @@
-import type { Property, Room } from "@prisma/client";
+import type { Contract, Property, RentPayment, Room, Tenant } from "@prisma/client";
 
 const propertyTypeToDb = {
   "오피스텔": "OFFICETEL",
@@ -48,6 +48,32 @@ const roomStatusFromDb = {
   MAINTENANCE: "maintenance",
 } as const;
 
+const contractStatusToDb = {
+  active: "ACTIVE",
+  scheduled: "SCHEDULED",
+  expired: "EXPIRED",
+  terminated: "TERMINATED",
+} as const;
+
+const contractStatusFromDb = {
+  ACTIVE: "active",
+  SCHEDULED: "scheduled",
+  EXPIRED: "expired",
+  TERMINATED: "terminated",
+} as const;
+
+const rentStatusToDb = {
+  paid: "PAID",
+  unpaid: "UNPAID",
+  late: "LATE",
+} as const;
+
+const rentStatusFromDb = {
+  PAID: "paid",
+  UNPAID: "unpaid",
+  LATE: "late",
+} as const;
+
 export function toDbPropertyType(type: string) {
   return propertyTypeToDb[type as keyof typeof propertyTypeToDb];
 }
@@ -82,5 +108,53 @@ export function toApiRoom(room: Room) {
     maintenanceFee: room.maintenanceFee,
     area: room.area,
     memo: room.memo ?? "",
+  };
+}
+
+export function toApiTenant(tenant: Tenant) {
+  return {
+    id: tenant.id,
+    name: tenant.name,
+    phone: tenant.phone,
+    email: tenant.email ?? "",
+    memo: tenant.memo ?? "",
+  };
+}
+
+export function toDbContractStatus(status: string) {
+  return contractStatusToDb[status as keyof typeof contractStatusToDb];
+}
+
+export function toApiContract(contract: Contract) {
+  return {
+    id: contract.id,
+    propertyId: contract.propertyId,
+    roomId: contract.roomId,
+    tenantId: contract.tenantId,
+    startDate: contract.startDate.toISOString().slice(0, 10),
+    endDate: contract.endDate.toISOString().slice(0, 10),
+    deposit: contract.deposit,
+    monthlyRent: contract.monthlyRent,
+    maintenanceFee: contract.maintenanceFee,
+    paymentDay: contract.paymentDay,
+    status: contractStatusFromDb[contract.status],
+    memo: contract.memo ?? "",
+  };
+}
+
+export function toDbRentStatus(status: string) {
+  return rentStatusToDb[status as keyof typeof rentStatusToDb];
+}
+
+export function toApiRentPayment(payment: RentPayment) {
+  return {
+    id: payment.id,
+    contractId: payment.contractId,
+    dueDate: payment.dueDate.toISOString().slice(0, 10),
+    paidDate: payment.paidDate?.toISOString().slice(0, 10) ?? "",
+    rentAmount: payment.rentAmount,
+    maintenanceFee: payment.maintenanceFee,
+    status: rentStatusFromDb[payment.status],
+    memo: payment.memo ?? "",
   };
 }

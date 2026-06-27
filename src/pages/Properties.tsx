@@ -72,6 +72,13 @@ function Properties() {
     try {
       if (editingProperty) {
         await updateProperty({ ...editingProperty, ...form });
+        const roomNames = parseRoomNames(initialRooms);
+
+        await Promise.all(
+          roomNames.map((roomName) =>
+            upsertRoom(createInitialRoom(editingProperty.id, roomName, form.type)),
+          ),
+        );
       } else {
         const createdProperty = await addProperty(form);
         const roomNames = parseRoomNames(initialRooms);
@@ -169,23 +176,23 @@ function Properties() {
                 </select>
               </div>
 
-              {!editingProperty && (
-                <div className="rounded-lg bg-slate-50 p-4">
-                  <label className="text-sm font-black text-slate-950">
-                    초기 호실
-                  </label>
-                  <p className="mt-1 text-xs text-slate-500">
-                    건물 저장과 동시에 만들 호실을 입력하세요. 쉼표나 줄바꿈으로 구분합니다.
-                  </p>
-                  <textarea
-                    value={initialRooms}
-                    onChange={(event) => setInitialRooms(event.target.value)}
-                    rows={4}
-                    placeholder={"101호, 102호, 201호\n또는\nB101, 1층 상가"}
-                    className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                  />
-                </div>
-              )}
+              <div className="rounded-lg bg-slate-50 p-4">
+                <label className="text-sm font-black text-slate-950">
+                  {editingProperty ? "추가 호실" : "초기 호실"}
+                </label>
+                <p className="mt-1 text-xs text-slate-500">
+                  {editingProperty
+                    ? "이 건물에 새로 추가할 호실을 입력하세요. 기존 호실은 호실관리에서 수정합니다."
+                    : "건물 저장과 동시에 만들 호실을 입력하세요. 쉼표나 줄바꿈으로 구분합니다."}
+                </p>
+                <textarea
+                  value={initialRooms}
+                  onChange={(event) => setInitialRooms(event.target.value)}
+                  rows={4}
+                  placeholder={"101호, 102호, 201호\n또는\nB101, 1층 상가"}
+                  className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
 
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
                 <p className="font-bold">호실관리는 무엇인가요?</p>

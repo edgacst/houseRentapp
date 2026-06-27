@@ -66,9 +66,12 @@ export default function Rooms() {
       <div className="space-y-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">호실 관리</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              호실, 공실, 보증금, 월세, 관리비를 관리합니다.
+            <p className="text-sm font-bold text-blue-600">Room</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">
+              호실 관리
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              호실별 보증금, 월세, 관리비, 공실 상태를 관리합니다.
             </p>
           </div>
           <button
@@ -77,7 +80,7 @@ export default function Rooms() {
               setIsFormOpen(true);
             }}
             disabled={!activePropertyId}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             + 호실 등록
           </button>
@@ -129,8 +132,8 @@ export default function Rooms() {
           <RoomForm
             propertyId={editingRoom?.propertyId ?? activePropertyId}
             editingRoom={editingRoom}
-            onSubmit={(room) => {
-              upsertRoom(room);
+            onSubmit={async (room) => {
+              await upsertRoom(room);
               setIsFormOpen(false);
               setEditingRoom(null);
             }}
@@ -157,11 +160,11 @@ export default function Rooms() {
             setEditingRoom(room);
             setIsFormOpen(true);
           }}
-          onDelete={(roomId) => {
+          onDelete={async (roomId) => {
             if (!confirm("호실을 삭제하면 연결된 계약과 월세도 삭제됩니다. 계속할까요?")) {
               return;
             }
-            deleteRoom(roomId);
+            await deleteRoom(roomId);
             if (selectedRoom?.id === roomId) setSelectedRoom(null);
           }}
           onDetail={setSelectedRoom}
@@ -174,8 +177,10 @@ export default function Rooms() {
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+        {value}
+      </p>
     </div>
   );
 }

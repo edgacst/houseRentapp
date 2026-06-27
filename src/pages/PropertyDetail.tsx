@@ -1,9 +1,9 @@
+import { useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import RoomForm from "../components/room/RoomForm";
 import RoomList from "../components/room/RoomList";
 import { useAppData } from "../context/AppContext";
 import MainLayout from "../layouts/MainLayout";
-import { useState } from "react";
 import type { Room } from "../types/room";
 
 function PropertyDetail() {
@@ -35,20 +35,20 @@ function PropertyDetail() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <Link to="/properties" className="text-sm font-semibold text-blue-600">
+            <Link to="/properties" className="text-sm font-bold text-blue-600">
               ← 부동산 목록
             </Link>
-            <h1 className="mt-3 text-3xl font-bold text-slate-900">
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">
               {property.name}
             </h1>
-            <p className="mt-2 text-slate-500">{property.address}</p>
+            <p className="mt-2 text-sm text-slate-500">{property.address}</p>
           </div>
           <button
             onClick={() => {
               setEditingRoom(null);
               setIsFormOpen(true);
             }}
-            className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+            className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
           >
             + 호실 등록
           </button>
@@ -65,8 +65,8 @@ function PropertyDetail() {
           <RoomForm
             propertyId={property.id}
             editingRoom={editingRoom}
-            onSubmit={(room) => {
-              upsertRoom(room);
+            onSubmit={async (room) => {
+              await upsertRoom(room);
               setIsFormOpen(false);
               setEditingRoom(null);
             }}
@@ -79,7 +79,7 @@ function PropertyDetail() {
 
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900">호실 목록</h2>
+            <h2 className="text-xl font-black text-slate-950">호실 목록</h2>
           </div>
           <RoomList
             rooms={propertyRooms}
@@ -92,11 +92,11 @@ function PropertyDetail() {
               setEditingRoom(room);
               setIsFormOpen(true);
             }}
-            onDelete={(roomId) => {
+            onDelete={async (roomId) => {
               if (!confirm("호실을 삭제하면 연결된 계약과 월세도 삭제됩니다. 계속할까요?")) {
                 return;
               }
-              deleteRoom(roomId);
+              await deleteRoom(roomId);
             }}
           />
         </section>
@@ -108,8 +108,10 @@ function PropertyDetail() {
 function SummaryCard({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{title}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-sm font-bold text-slate-500">{title}</p>
+      <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+        {value}
+      </p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useAppData } from "../context/AppContext";
 import MainLayout from "../layouts/MainLayout";
 import type { Tenant } from "../types/business";
@@ -21,20 +21,6 @@ export default function Tenants() {
   const [form, setForm] = useState<Tenant>(emptyTenant);
   const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
-
-  const filteredTenants = useMemo(() => {
-    const lowerKeyword = keyword.toLowerCase();
-    return tenants.filter((tenant) => {
-      const link = getTenantLink(tenant.id);
-      return (
-        tenant.name.toLowerCase().includes(lowerKeyword) ||
-        tenant.phone.toLowerCase().includes(lowerKeyword) ||
-        tenant.email?.toLowerCase().includes(lowerKeyword) ||
-        link?.propertyName.toLowerCase().includes(lowerKeyword) ||
-        link?.roomName.toLowerCase().includes(lowerKeyword)
-      );
-    });
-  }, [keyword, tenants, contracts, rooms, properties]);
 
   const availableRooms = rooms.filter(
     (room) => !selectedPropertyId || room.propertyId === selectedPropertyId,
@@ -86,7 +72,7 @@ export default function Tenants() {
     setSelectedRoomId(rooms.find((room) => room.propertyId === propertyId)?.id ?? "");
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const tenantId = form.id || crypto.randomUUID();
     const selectedRoom = rooms.find((room) => room.id === selectedRoomId);
@@ -100,7 +86,7 @@ export default function Tenants() {
         : "",
     ].filter(Boolean);
 
-    upsertTenant({
+    await upsertTenant({
       ...form,
       id: tenantId,
       memo: memoParts.join(" · "),
@@ -110,7 +96,7 @@ export default function Tenants() {
       const currentContract = contracts.find(
         (contract) => contract.tenantId === tenantId && contract.status === "active",
       );
-      upsertContract({
+      await upsertContract({
         id: currentContract?.id ?? "",
         propertyId: selectedRoom.propertyId,
         roomId: selectedRoom.id,
@@ -128,6 +114,18 @@ export default function Tenants() {
 
     closeForm();
   };
+
+  const lowerKeyword = keyword.toLowerCase();
+  const filteredTenants = tenants.filter((tenant) => {
+    const link = getTenantLink(tenant.id);
+    return (
+      tenant.name.toLowerCase().includes(lowerKeyword) ||
+      tenant.phone.toLowerCase().includes(lowerKeyword) ||
+      tenant.email?.toLowerCase().includes(lowerKeyword) ||
+      link?.propertyName.toLowerCase().includes(lowerKeyword) ||
+      link?.roomName.toLowerCase().includes(lowerKeyword)
+    );
+  });
 
   return (
     <MainLayout>
@@ -282,7 +280,7 @@ export default function Tenants() {
                       if (!confirm("임차인을 삭제하면 연결된 계약과 월세도 삭제됩니다. 계속할까요?")) {
                         return;
                       }
-                      deleteTenant(tenant.id);
+                      void deleteTenant(tenant.id);
                     }}
                     className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600"
                   >

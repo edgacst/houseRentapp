@@ -10,8 +10,8 @@ const statusText: Record<RentStatus, string> = {
 };
 
 const statusClass: Record<RentStatus, string> = {
-  paid: "bg-green-50 text-green-700",
-  unpaid: "bg-orange-50 text-orange-700",
+  paid: "bg-emerald-50 text-emerald-700",
+  unpaid: "bg-amber-50 text-amber-700",
   late: "bg-red-50 text-red-700",
 };
 
@@ -28,16 +28,21 @@ export default function Rents() {
   const [keyword, setKeyword] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<RentPayment | null>(null);
-  const [form, setForm] = useState<RentPayment>({
-    id: "",
-    contractId: contracts[0]?.id ?? "",
-    dueDate: "",
-    paidDate: "",
-    rentAmount: contracts[0]?.monthlyRent ?? 0,
-    maintenanceFee: contracts[0]?.maintenanceFee ?? 0,
-    status: "unpaid",
-    memo: "",
-  });
+  const [form, setForm] = useState<RentPayment>(createEmptyPayment());
+
+  function createEmptyPayment(): RentPayment {
+    const firstContract = contracts[0];
+    return {
+      id: "",
+      contractId: firstContract?.id ?? "",
+      dueDate: new Date().toISOString().slice(0, 10),
+      paidDate: "",
+      rentAmount: firstContract?.monthlyRent ?? 0,
+      maintenanceFee: firstContract?.maintenanceFee ?? 0,
+      status: "unpaid",
+      memo: "",
+    };
+  }
 
   const filteredPayments = useMemo(() => {
     const lowerKeyword = keyword.toLowerCase();
@@ -60,20 +65,8 @@ export default function Rents() {
     .reduce((sum, payment) => sum + payment.rentAmount + payment.maintenanceFee, 0);
 
   const openForm = (payment?: RentPayment) => {
-    const firstContract = contracts[0];
     setEditingPayment(payment ?? null);
-    setForm(
-      payment ?? {
-        id: "",
-        contractId: firstContract?.id ?? "",
-        dueDate: "",
-        paidDate: "",
-        rentAmount: firstContract?.monthlyRent ?? 0,
-        maintenanceFee: firstContract?.maintenanceFee ?? 0,
-        status: "unpaid",
-        memo: "",
-      },
-    );
+    setForm(payment ?? createEmptyPayment());
     setIsOpen(true);
   };
 
@@ -90,18 +83,28 @@ export default function Rents() {
       <div className="space-y-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">월세 관리</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              월세와 관리비 청구, 납부, 미납 상태를 관리합니다.
+            <p className="text-sm font-bold text-blue-600">Rent</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">
+              월세 관리
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              월세와 관리비 청구, 납부, 미납, 연체 상태를 관리합니다.
             </p>
           </div>
           <button
             onClick={() => openForm()}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+            disabled={contracts.length === 0}
+            className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             + 월세 등록
           </button>
         </div>
+
+        {contracts.length === 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            월세 등록 전 진행중인 계약이 필요합니다.
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-4">
           <SummaryCard label="전체 청구" value={`${rentPayments.length}건`} />
@@ -124,101 +127,109 @@ export default function Rents() {
 
         {isOpen && (
           <form
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              upsertRentPayment({
+              await upsertRentPayment({
                 ...form,
-                paidDate: form.status === "paid" ? form.paidDate || new Date().toISOString().slice(0, 10) : "",
+                paidDate:
+                  form.status === "paid"
+                    ? form.paidDate || new Date().toISOString().slice(0, 10)
+                    : "",
               });
               setIsOpen(false);
               setEditingPayment(null);
             }}
             className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
           >
-            <h2 className="mb-5 text-lg font-semibold text-slate-900">
+            <h2 className="mb-5 text-lg font-black text-slate-950">
               {editingPayment ? "월세 수정" : "월세 등록"}
             </h2>
             <div className="grid gap-4 md:grid-cols-3">
-              <select
-                value={form.contractId}
-                required
-                onChange={(event) => {
-                  const contract = contracts.find(
-                    (item) => item.id === event.target.value,
-                  );
-                  setForm({
-                    ...form,
-                    contractId: event.target.value,
-                    rentAmount: contract?.monthlyRent ?? form.rentAmount,
-                    maintenanceFee:
-                      contract?.maintenanceFee ?? form.maintenanceFee,
-                  });
-                }}
-                className="rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
-              >
-                {contracts.map((contract) => (
-                  <option key={contract.id} value={contract.id}>
-                    {getContractLabel(contract.id)}
-                  </option>
-                ))}
-              </select>
-              <DateInput
+              <label className="block">
+                <span className="text-sm font-bold text-slate-700">계약</span>
+                <select
+                  value={form.contractId}
+                  required
+                  onChange={(event) => {
+                    const contract = contracts.find(
+                      (item) => item.id === event.target.value,
+                    );
+                    setForm({
+                      ...form,
+                      contractId: event.target.value,
+                      rentAmount: contract?.monthlyRent ?? form.rentAmount,
+                      maintenanceFee:
+                        contract?.maintenanceFee ?? form.maintenanceFee,
+                    });
+                  }}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+                >
+                  <option value="">선택</option>
+                  {contracts.map((contract) => (
+                    <option key={contract.id} value={contract.id}>
+                      {getContractLabel(contract.id)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <DateField
+                label="납부 예정일"
                 value={form.dueDate}
                 onChange={(value) => setForm({ ...form, dueDate: value })}
               />
-              <DateInput
+              <DateField
+                label="실제 납부일"
                 value={form.paidDate ?? ""}
+                required={false}
                 onChange={(value) => setForm({ ...form, paidDate: value })}
               />
-              <NumberInput
+              <NumberField
+                label="월세"
                 value={form.rentAmount}
-                placeholder="월세"
+                placeholder="예: 450000"
+                suffix="원"
                 onChange={(value) => setForm({ ...form, rentAmount: value })}
               />
-              <NumberInput
+              <NumberField
+                label="관리비"
                 value={form.maintenanceFee}
-                placeholder="관리비"
+                placeholder="예: 50000"
+                suffix="원"
                 onChange={(value) => setForm({ ...form, maintenanceFee: value })}
               />
-              <select
-                value={form.status}
-                onChange={(event) =>
-                  setForm({ ...form, status: event.target.value as RentStatus })
-                }
-                className="rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
-              >
-                {Object.entries(statusText).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <label className="block">
+                <span className="text-sm font-bold text-slate-700">납부 상태</span>
+                <select
+                  value={form.status}
+                  onChange={(event) =>
+                    setForm({ ...form, status: event.target.value as RentStatus })
+                  }
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+                >
+                  {Object.entries(statusText).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <textarea
-              value={form.memo}
-              onChange={(event) => setForm({ ...form, memo: event.target.value })}
-              placeholder="메모"
-              rows={3}
-              className="mt-4 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+            <label className="mt-4 block">
+              <span className="text-sm font-bold text-slate-700">메모</span>
+              <textarea
+                value={form.memo}
+                onChange={(event) => setForm({ ...form, memo: event.target.value })}
+                placeholder="입금자명, 부분납, 특이사항을 입력하세요."
+                rows={3}
+                className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+              />
+            </label>
+            <FormActions
+              onCancel={() => {
+                setIsOpen(false);
+                setEditingPayment(null);
+              }}
             />
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  setEditingPayment(null);
-                }}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-              >
-                저장
-              </button>
-            </div>
           </form>
         )}
 
@@ -230,45 +241,45 @@ export default function Rents() {
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
+                  <h2 className="text-lg font-black text-slate-950">
                     {getContractLabel(payment.contractId)}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
                     납부예정일 {payment.dueDate} · 납부일 {payment.paidDate || "-"}
                   </p>
-                  <p className="mt-2 text-sm font-medium text-slate-700">
+                  <p className="mt-2 text-sm font-bold text-slate-700">
                     {(payment.rentAmount + payment.maintenanceFee).toLocaleString("ko-KR")}원
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass[payment.status]}`}
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass[payment.status]}`}
                   >
                     {statusText[payment.status]}
                   </span>
                   {payment.status !== "paid" && (
                     <button
                       onClick={() =>
-                        upsertRentPayment({
+                        void upsertRentPayment({
                           ...payment,
                           status: "paid",
                           paidDate: new Date().toISOString().slice(0, 10),
                         })
                       }
-                      className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white"
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white"
                     >
                       수납
                     </button>
                   )}
                   <button
                     onClick={() => openForm(payment)}
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700"
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700"
                   >
                     수정
                   </button>
                   <button
-                    onClick={() => deleteRentPayment(payment.id)}
-                    className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600"
+                    onClick={() => void deleteRentPayment(payment.id)}
+                    className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600"
                   >
                     삭제
                   </button>
@@ -282,49 +293,94 @@ export default function Rents() {
   );
 }
 
-function DateInput({
+function DateField({
+  label,
   value,
+  required = true,
   onChange,
 }: {
+  label: string;
   value: string;
+  required?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
-    <input
-      type="date"
-      value={value}
-      required
-      onChange={(event) => onChange(event.target.value)}
-      className="rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
-    />
+    <label className="block">
+      <span className="text-sm font-bold text-slate-700">{label}</span>
+      <input
+        type="date"
+        value={value}
+        required={required}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+      />
+    </label>
   );
 }
 
-function NumberInput({
+function NumberField({
+  label,
   value,
   placeholder,
+  suffix,
   onChange,
 }: {
+  label: string;
   value: number;
   placeholder: string;
+  suffix?: string;
   onChange: (value: number) => void;
 }) {
   return (
-    <input
-      type="number"
-      value={value}
-      placeholder={placeholder}
-      onChange={(event) => onChange(Number(event.target.value))}
-      className="rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
-    />
+    <label className="block">
+      <span className="text-sm font-bold text-slate-700">{label}</span>
+      <div className="relative mt-2">
+        <input
+          type="number"
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className={`w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900 ${
+            suffix ? "pr-12" : ""
+          }`}
+        />
+        {suffix && (
+          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+            {suffix}
+          </span>
+        )}
+      </div>
+    </label>
+  );
+}
+
+function FormActions({ onCancel }: { onCancel: () => void }) {
+  return (
+    <div className="mt-5 flex justify-end gap-2">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700"
+      >
+        취소
+      </button>
+      <button
+        type="submit"
+        className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white"
+      >
+        저장
+      </button>
+    </div>
   );
 }
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+        {value}
+      </p>
     </div>
   );
 }

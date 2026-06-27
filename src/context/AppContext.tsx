@@ -6,22 +6,33 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { initialContracts, initialRentPayments, initialTenants } from "../data/business";
 import {
   clearStoredToken,
+  createContract,
   createProperty,
+  createRentPayment,
   createRoom,
+  createTenant,
+  deleteContractApi,
   deletePropertyApi,
+  deleteRentPaymentApi,
   deleteRoomApi,
+  deleteTenantApi,
+  fetchContracts,
   fetchProperties,
+  fetchRentPayments,
   fetchRooms,
+  fetchTenants,
   getMe,
   getStoredToken,
   login,
   register,
   storeToken,
+  updateContractApi,
   updatePropertyApi,
+  updateRentPaymentApi,
   updateRoomApi,
+  updateTenantApi,
   type AuthUser,
 } from "../lib/api";
 import type { Contract, RentPayment, Tenant } from "../types/business";
@@ -51,17 +62,15 @@ type AppContextValue = {
   deleteProperty: (propertyId: string) => void;
   upsertRoom: (room: Room) => void;
   deleteRoom: (roomId: string) => void;
-  upsertTenant: (tenant: Tenant) => void;
-  deleteTenant: (tenantId: string) => void;
-  upsertContract: (contract: Contract) => void;
-  deleteContract: (contractId: string) => void;
-  upsertRentPayment: (payment: RentPayment) => void;
-  deleteRentPayment: (paymentId: string) => void;
+  upsertTenant: (tenant: Tenant) => Promise<void>;
+  deleteTenant: (tenantId: string) => Promise<void>;
+  upsertContract: (contract: Contract) => Promise<void>;
+  deleteContract: (contractId: string) => Promise<void>;
+  upsertRentPayment: (payment: RentPayment) => Promise<void>;
+  deleteRentPayment: (paymentId: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
-
-const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -70,20 +79,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState("");
   const [properties, setProperties] = useState<Property[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
-  const [contracts, setContracts] = useState<Contract[]>(initialContracts);
-  const [rentPayments, setRentPayments] =
-    useState<RentPayment[]>(initialRentPayments);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [rentPayments, setRentPayments] = useState<RentPayment[]>([]);
 
   const reloadWorkspace = async () => {
     setIsDataLoading(true);
     try {
-      const [nextProperties, nextRooms] = await Promise.all([
+      const [
+        nextProperties,
+        nextRooms,
+        nextTenants,
+        nextContracts,
+        nextRentPayments,
+      ] = await Promise.all([
         fetchProperties(),
         fetchRooms(),
+        fetchTenants(),
+        fetchContracts(),
+        fetchRentPayments(),
       ]);
       setProperties(nextProperties);
       setRooms(nextRooms);
+      setTenants(nextTenants);
+      setContracts(nextContracts);
+      setRentPayments(nextRentPayments);
     } finally {
       setIsDataLoading(false);
     }
@@ -141,6 +161,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProperties([]);
         setRooms([]);
+        setTenants([]);
+        setContracts([]);
+        setRentPayments([]);
       },
       reloadWorkspace,
       addProperty: async (property) => {
@@ -196,8 +219,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prev.filter((payment) => !contractIds.includes(payment.contractId)),
         );
       },
-      upsertTenant: (tenant) => {
-        const nextTenant = { ...tenant, id: tenant.id || makeId("tenant") };
+      upsertTenant: async (tenant) => {
+        const nextTenant = tenant.id
+          ? await updateTenantApi(tenant)
+          : await createTenant(tenant);
         setTenants((prev) => {
           const exists = prev.some((item) => item.id === nextTenant.id);
           return exists
@@ -205,10 +230,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : [nextTenant, ...prev];
         });
       },
-      deleteTenant: (tenantId) => {
+      deleteTenant: async (tenantId) => {
         const contractIds = contracts
           .filter((contract) => contract.tenantId === tenantId)
           .map((contract) => contract.id);
+        await deleteTenantApi(tenantId);
         setTenants((prev) => prev.filter((tenant) => tenant.id !== tenantId));
         setContracts((prev) =>
           prev.filter((contract) => contract.tenantId !== tenantId),
@@ -217,11 +243,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prev.filter((payment) => !contractIds.includes(payment.contractId)),
         );
       },
-      upsertContract: (contract) => {
-        const nextContract = {
-          ...contract,
-          id: contract.id || makeId("contract"),
-        };
+      upsertContract: async (contract) => {
+        const nextContract = contract.id
+          ? await updateContractApi(contract)
+          : await createContract(contract);
         setContracts((prev) => {
           const exists = prev.some((item) => item.id === nextContract.id);
           return exists
@@ -245,14 +270,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      deleteContract: (contractId) => {
+      deleteContract: async (contractId) => {
+        await deleteContractApi(contractId);
         setContracts((prev) => prev.filter((contract) => contract.id !== contractId));
         setRentPayments((prev) =>
           prev.filter((payment) => payment.contractId !== contractId),
         );
       },
-      upsertRentPayment: (payment) => {
-        const nextPayment = { ...payment, id: payment.id || makeId("rent") };
+      upsertRentPayment: async (payment) => {
+        const nextPayment = payment.id
+          ? await updateRentPaymentApi(payment)
+          : await createRentPayment(payment);
         setRentPayments((prev) => {
           const exists = prev.some((item) => item.id === nextPayment.id);
           return exists
@@ -260,7 +288,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : [nextPayment, ...prev];
         });
       },
-      deleteRentPayment: (paymentId) => {
+      deleteRentPayment: async (paymentId) => {
+        await deleteRentPaymentApi(paymentId);
         setRentPayments((prev) => prev.filter((payment) => payment.id !== paymentId));
       },
     }),
