@@ -3,6 +3,7 @@ import RoomCard from "./RoomCard";
 
 type RoomListProps = {
   rooms: Room[];
+  getPropertyName?: (propertyId: string) => string | undefined;
   getTenantName?: (roomId: string) => string | undefined;
   onEdit: (room: Room) => void;
   onDelete: (roomId: string) => void;
@@ -11,6 +12,7 @@ type RoomListProps = {
 
 export default function RoomList({
   rooms,
+  getPropertyName,
   getTenantName,
   onEdit,
   onDelete,
@@ -30,6 +32,7 @@ export default function RoomList({
         <RoomCard
           key={room.id}
           room={room}
+          propertyName={getPropertyName?.(room.propertyId)}
           tenantName={getTenantName?.(room.id)}
           onEdit={onEdit}
           onDelete={onDelete}

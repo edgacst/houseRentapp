@@ -9,9 +9,9 @@ import type { Room, RoomStatus } from "../types/room";
 const statusOptions: Array<{ label: string; value: RoomStatus | "all" }> = [
   { label: "전체", value: "all" },
   { label: "공실", value: "vacant" },
-  { label: "임대중", value: "occupied" },
+  { label: "임대 중", value: "occupied" },
   { label: "예약", value: "reserved" },
-  { label: "수리중", value: "maintenance" },
+  { label: "수리 중", value: "maintenance" },
 ];
 
 export default function Rooms() {
@@ -26,6 +26,10 @@ export default function Rooms() {
 
   const activePropertyId =
     propertyId === "all" ? properties[0]?.id ?? "" : propertyId;
+  const activeProperty =
+    propertyId === "all"
+      ? null
+      : properties.find((property) => property.id === propertyId) ?? null;
 
   const filteredRooms = useMemo(() => {
     const lowerKeyword = keyword.toLowerCase();
@@ -61,6 +65,10 @@ export default function Rooms() {
   const getPropertyName = (targetPropertyId: string) =>
     properties.find((property) => property.id === targetPropertyId)?.name;
 
+  const selectedPropertyForForm = properties.find(
+    (property) => property.id === (editingRoom?.propertyId ?? activePropertyId),
+  );
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -71,7 +79,7 @@ export default function Rooms() {
               호실 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              호실별 보증금, 월세, 관리비, 공실 상태를 관리합니다.
+              건물별 호실, 보증금, 월세, 관리비, 공실 상태를 관리합니다.
             </p>
           </div>
           <button
@@ -86,12 +94,33 @@ export default function Rooms() {
           </button>
         </div>
 
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
+            현재 보는 건물
+          </p>
+          <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-2xl font-black text-slate-950">
+                {activeProperty ? activeProperty.name : "전체 건물"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {activeProperty
+                  ? `${activeProperty.address} · ${activeProperty.type}`
+                  : "모든 건물의 호실을 함께 보고 있습니다. 아래 카드마다 건물명이 표시됩니다."}
+              </p>
+            </div>
+            <p className="text-sm font-bold text-blue-700">
+              {filteredRooms.length}개 호실 표시 중
+            </p>
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-4">
           <SummaryCard label="전체 호실" value={`${summary.total}개`} />
           <SummaryCard label="공실" value={`${summary.vacant}개`} />
-          <SummaryCard label="임대중" value={`${summary.occupied}개`} />
+          <SummaryCard label="임대 중" value={`${summary.occupied}개`} />
           <SummaryCard
-            label="예상 월수입"
+            label="예상 월수익"
             value={`${summary.monthlyRevenue.toLocaleString("ko-KR")}원`}
           />
         </div>
@@ -99,13 +128,13 @@ export default function Rooms() {
         <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 md:flex-row">
           <input
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            onChange={(event) => setKeyword(event.target.value)}
             placeholder="호실명, 건물명, 유형, 메모 검색"
             className="flex-1 rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           />
           <select
             value={propertyId}
-            onChange={(e) => setPropertyId(e.target.value)}
+            onChange={(event) => setPropertyId(event.target.value)}
             className="rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
             <option value="all">전체 건물</option>
@@ -117,7 +146,9 @@ export default function Rooms() {
           </select>
           <select
             value={status}
-            onChange={(e) => setStatus(e.target.value as RoomStatus | "all")}
+            onChange={(event) =>
+              setStatus(event.target.value as RoomStatus | "all")
+            }
             className="rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
             {statusOptions.map((option) => (
@@ -131,6 +162,7 @@ export default function Rooms() {
         {isFormOpen && (
           <RoomForm
             propertyId={editingRoom?.propertyId ?? activePropertyId}
+            propertyName={selectedPropertyForForm?.name}
             editingRoom={editingRoom}
             onSubmit={async (room) => {
               await upsertRoom(room);
@@ -155,13 +187,18 @@ export default function Rooms() {
 
         <RoomList
           rooms={filteredRooms}
+          getPropertyName={getPropertyName}
           getTenantName={getTenantName}
           onEdit={(room) => {
             setEditingRoom(room);
             setIsFormOpen(true);
           }}
           onDelete={async (roomId) => {
-            if (!confirm("호실을 삭제하면 연결된 계약과 월세도 삭제됩니다. 계속할까요?")) {
+            if (
+              !confirm(
+                "호실을 삭제하면 연결된 계약과 월세도 삭제됩니다. 계속할까요?",
+              )
+            ) {
               return;
             }
             await deleteRoom(roomId);

@@ -3,6 +3,7 @@ import type { Room, RoomStatus, RoomType } from "../../types/room";
 
 type RoomFormProps = {
   propertyId: string;
+  propertyName?: string;
   editingRoom: Room | null;
   onSubmit: (room: Room) => void;
   onCancel: () => void;
@@ -13,9 +14,9 @@ const roomStatuses: RoomStatus[] = ["vacant", "occupied", "reserved", "maintenan
 
 const statusText: Record<RoomStatus, string> = {
   vacant: "공실",
-  occupied: "임대중",
+  occupied: "임대 중",
   reserved: "예약",
-  maintenance: "수리중",
+  maintenance: "수리 중",
 };
 
 const emptyRoom = (propertyId: string): Room => ({
@@ -34,6 +35,7 @@ const emptyRoom = (propertyId: string): Room => ({
 
 export default function RoomForm({
   propertyId,
+  propertyName,
   editingRoom,
   onSubmit,
   onCancel,
@@ -54,9 +56,16 @@ export default function RoomForm({
       onSubmit={handleSubmit}
       className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
     >
-      <h2 className="mb-5 text-lg font-black text-slate-950">
-        {editingRoom ? "호실 수정" : "호실 등록"}
-      </h2>
+      <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-lg font-black text-slate-950">
+            {editingRoom ? "호실 수정" : "호실 등록"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            대상 건물: <span className="font-bold text-slate-800">{propertyName ?? "-"}</span>
+          </p>
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <TextField

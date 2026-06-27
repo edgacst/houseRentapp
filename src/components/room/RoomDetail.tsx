@@ -9,9 +9,9 @@ type RoomDetailProps = {
 
 const statusText = {
   vacant: "공실",
-  occupied: "임대중",
+  occupied: "임대 중",
   reserved: "예약",
-  maintenance: "수리중",
+  maintenance: "수리 중",
 };
 
 const formatMoney = (value: number) => value.toLocaleString("ko-KR");
@@ -26,11 +26,14 @@ export default function RoomDetail({
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-5 flex items-start justify-between">
+      <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">{room.name}</h2>
+          <p className="text-sm font-bold text-blue-600">{propertyName || "-"}</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-900">
+            {room.name}
+          </h2>
           <p className="mt-1 text-sm text-slate-500">
-            {propertyName || "-"} · {room.floor}층 · {room.type}
+            {room.floor}층 · {room.type}
           </p>
         </div>
         <button

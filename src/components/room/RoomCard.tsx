@@ -2,6 +2,7 @@ import type { Room } from "../../types/room";
 
 type RoomCardProps = {
   room: Room;
+  propertyName?: string;
   tenantName?: string;
   onEdit: (room: Room) => void;
   onDelete: (roomId: string) => void;
@@ -10,9 +11,9 @@ type RoomCardProps = {
 
 const statusLabel = {
   vacant: "공실",
-  occupied: "임대중",
+  occupied: "임대 중",
   reserved: "예약",
-  maintenance: "수리중",
+  maintenance: "수리 중",
 };
 
 const statusClass = {
@@ -26,6 +27,7 @@ const formatMoney = (value: number) => value.toLocaleString("ko-KR");
 
 export default function RoomCard({
   room,
+  propertyName,
   tenantName,
   onEdit,
   onDelete,
@@ -33,9 +35,14 @@ export default function RoomCard({
 }: RoomCardProps) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <div className="mb-4 flex items-start justify-between">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">{room.name}</h3>
+          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+            {propertyName ?? "건물 미지정"}
+          </span>
+          <h3 className="mt-3 text-lg font-semibold text-slate-900">
+            {room.name}
+          </h3>
           <p className="mt-1 text-sm text-slate-500">
             {room.floor}층 · {room.type} · {room.area}㎡
           </p>
