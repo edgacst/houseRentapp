@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useAppData } from "../context/AppContext";
 
 const menus = [
   { name: "대시보드", path: "/dashboard", icon: "D" },
@@ -11,6 +12,8 @@ const menus = [
 ];
 
 function Sidebar() {
+  const { user, logout } = useAppData();
+
   return (
     <aside className="sticky top-0 flex h-screen w-72 flex-col border-r border-slate-200 bg-white/95 text-slate-900 backdrop-blur">
       <div className="border-b border-slate-100 p-6">
@@ -58,7 +61,7 @@ function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-4">
+      <div className="space-y-3 p-4">
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-semibold text-slate-500">현재 단계</p>
           <p className="mt-1 text-sm font-bold text-slate-900">
@@ -67,6 +70,27 @@ function Sidebar() {
           <div className="mt-3 h-2 rounded-full bg-slate-200">
             <div className="h-2 w-2/3 rounded-full bg-blue-600" />
           </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-50 text-sm font-black text-blue-700">
+              {user?.name?.slice(0, 1) ?? "U"}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-slate-900">
+                {user?.name}
+              </p>
+              <p className="truncate text-xs text-slate-500">{user?.email}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          >
+            로그아웃
+          </button>
         </div>
       </div>
     </aside>

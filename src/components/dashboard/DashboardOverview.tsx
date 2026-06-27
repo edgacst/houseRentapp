@@ -49,21 +49,20 @@ function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-950 text-white shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[1.35fr_0.65fr] lg:p-8">
+      <section className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50 text-slate-950 shadow-sm">
+        <div className="grid gap-5 p-5 lg:grid-cols-[1.5fr_1fr] lg:items-center">
           <div>
-            <p className="text-sm font-bold text-blue-300">오늘의 운영 요약</p>
-            <h1 className="mt-3 max-w-2xl text-3xl font-black tracking-tight lg:text-4xl">
+            <p className="text-xs font-bold text-blue-700">오늘의 운영 요약</p>
+            <h1 className="mt-2 max-w-4xl text-2xl font-black tracking-tight lg:text-3xl">
               수납, 공실, 계약 만료를 놓치지 않는 임대 관리
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
               HOUSERENT는 건물과 호실 데이터를 기반으로 임대 현황을
-              정리합니다. 다음 단계에서는 임차인, 계약, 월세 데이터까지
-              모두 API로 연결됩니다.
+              정리합니다. 다음 단계에서는 임차인, 계약, 월세 데이터까지 모두 API로 연결됩니다.
             </p>
           </div>
 
-          <div className="grid content-end gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="grid gap-3 sm:grid-cols-3">
             <HeroMetric label="운영 건물" value={`${properties.length}개`} />
             <HeroMetric label="관리 호실" value={`${rooms.length}개`} />
             <HeroMetric label="입주율" value={`${occupancyRate}%`} />
@@ -98,9 +97,11 @@ function DashboardOverview() {
 
 function HeroMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/10 p-4">
-      <p className="text-xs font-semibold text-slate-300">{label}</p>
-      <p className="mt-2 text-2xl font-black tracking-tight text-white">{value}</p>
+    <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+      <p className="text-xs font-bold text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+        {value}
+      </p>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 
 type MainLayoutProps = {
@@ -11,7 +10,6 @@ function MainLayout({ children }: MainLayoutProps) {
       <Sidebar />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header />
         <main className="flex-1 px-6 py-6 lg:px-8">{children}</main>
       </div>
     </div>
