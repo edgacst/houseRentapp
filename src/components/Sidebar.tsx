@@ -12,6 +12,7 @@ const menus = [
   { name: "월세관리", path: "/rents", icon: "W" },
   { name: "지출관리", path: "/expenses", icon: "E" },
   { name: "관리비", path: "/maintenance", icon: "M" },
+  { name: "문서함", path: "/documents", icon: "F" },
   { name: "통계", path: "/statistics", icon: "S" },
   { name: "내보내기", path: "/export", icon: "X" },
   { name: "계정", path: "/account", icon: "A" },
@@ -88,10 +89,10 @@ function Sidebar() {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-semibold text-slate-500">현재 단계</p>
           <p className="mt-1 text-sm font-bold text-slate-900">
-            알림 + 백업 + 수익관리
+            문서 + 알림 + 수익관리
           </p>
           <div className="mt-3 h-2 rounded-full bg-slate-200">
-            <div className="h-2 w-[88%] rounded-full bg-blue-600" />
+            <div className="h-2 w-[90%] rounded-full bg-blue-600" />
           </div>
         </div>
 

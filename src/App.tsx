@@ -7,6 +7,7 @@ import Auth from "./pages/Auth";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
 import DataExport from "./pages/DataExport";
+import Documents from "./pages/Documents";
 import Expenses from "./pages/Expenses";
 import Maintenance from "./pages/Maintenance";
 import Properties from "./pages/Properties";
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="/rents" element={<Rents />} />
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="/documents" element={<Documents />} />
         <Route path="/statistics" element={<Statistics />} />
         <Route path="/export" element={<DataExport />} />
         <Route path="/account" element={<Account />} />
