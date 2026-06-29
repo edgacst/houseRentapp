@@ -33,17 +33,16 @@ function ExpiringContracts() {
           return (
             <div
               key={contract.id}
-              className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3"
             >
-              <div>
-                <p className="font-bold text-slate-900">
-                  {property?.name ?? "미등록 건물"} {room?.name ?? ""}
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
+              <p className="min-w-0 truncate text-sm font-bold text-slate-900">
+                {property?.name ?? "미등록 건물"} {room?.name ?? ""}
+                <span className="mx-2 text-slate-300">·</span>
+                <span className="font-medium text-slate-500">
                   {tenant?.name ?? "임차인 미연결"}
-                </p>
-              </div>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                </span>
+              </p>
+              <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
                 D-{contract.daysLeft}
               </span>
             </div>
