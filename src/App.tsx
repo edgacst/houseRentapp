@@ -5,6 +5,7 @@ import AdminUsers from "./pages/AdminUsers";
 import Auth from "./pages/Auth";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
+import DataExport from "./pages/DataExport";
 import Expenses from "./pages/Expenses";
 import Maintenance from "./pages/Maintenance";
 import Properties from "./pages/Properties";
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/statistics" element={<Statistics />} />
+        <Route path="/export" element={<DataExport />} />
         <Route path="/account" element={<Account />} />
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

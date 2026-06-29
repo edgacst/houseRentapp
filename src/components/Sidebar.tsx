@@ -11,6 +11,7 @@ const menus = [
   { name: "지출관리", path: "/expenses", icon: "E" },
   { name: "관리비", path: "/maintenance", icon: "M" },
   { name: "통계", path: "/statistics", icon: "S" },
+  { name: "내보내기", path: "/export", icon: "X" },
   { name: "계정", path: "/account", icon: "A" },
 ];
 
