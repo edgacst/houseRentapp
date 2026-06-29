@@ -3,6 +3,21 @@ import { useAppData } from "../context/AppContext";
 import MainLayout from "../layouts/MainLayout";
 import type { RentPayment, RentStatus } from "../types/business";
 
+type SmsDeposit = {
+  id: string;
+  raw: string;
+  amount: number;
+  paidDate: string;
+  sender: string;
+};
+
+type SmsMatch = {
+  deposit: SmsDeposit;
+  candidateIds: string[];
+  selectedPaymentId: string;
+  status: "matched" | "ambiguous" | "unmatched";
+};
+
 const statusText: Record<RentStatus, string> = {
   paid: "납부 완료",
   unpaid: "미납",
@@ -14,6 +29,25 @@ const statusClass: Record<RentStatus, string> = {
   unpaid: "bg-amber-50 text-amber-700",
   late: "bg-red-50 text-red-700",
 };
+
+const bankWords = [
+  "국민",
+  "국민은행",
+  "신한",
+  "신한은행",
+  "우리",
+  "우리은행",
+  "하나",
+  "하나은행",
+  "농협",
+  "카카오",
+  "카카오뱅크",
+  "토스",
+  "입금",
+  "출금",
+  "잔액",
+  "이체",
+];
 
 export default function Rents() {
   const {
@@ -32,6 +66,8 @@ export default function Rents() {
   const [form, setForm] = useState<RentPayment>(createEmptyPayment());
   const [generateMonth, setGenerateMonth] = useState(new Date().toISOString().slice(0, 7));
   const [notice, setNotice] = useState("");
+  const [smsText, setSmsText] = useState("");
+  const [smsMatches, setSmsMatches] = useState<SmsMatch[]>([]);
 
   function createEmptyPayment(): RentPayment {
     const firstContract = contracts[0];
@@ -46,6 +82,11 @@ export default function Rents() {
       memo: "",
     };
   }
+
+  const openPayments = useMemo(
+    () => rentPayments.filter((payment) => payment.status !== "paid"),
+    [rentPayments],
+  );
 
   const filteredPayments = useMemo(() => {
     const lowerKeyword = keyword.toLowerCase();
@@ -63,9 +104,10 @@ export default function Rents() {
   const paidTotal = rentPayments
     .filter((payment) => payment.status === "paid")
     .reduce((sum, payment) => sum + payment.rentAmount + payment.maintenanceFee, 0);
-  const unpaidTotal = rentPayments
-    .filter((payment) => payment.status !== "paid")
-    .reduce((sum, payment) => sum + payment.rentAmount + payment.maintenanceFee, 0);
+  const unpaidTotal = openPayments.reduce(
+    (sum, payment) => sum + payment.rentAmount + payment.maintenanceFee,
+    0,
+  );
 
   const openForm = (payment?: RentPayment) => {
     setEditingPayment(payment ?? null);
@@ -73,12 +115,79 @@ export default function Rents() {
     setIsOpen(true);
   };
 
-  const getContractLabel = (contractId: string) => {
+  const getContractParts = (contractId: string) => {
     const contract = contracts.find((item) => item.id === contractId);
     const property = properties.find((item) => item.id === contract?.propertyId);
     const room = rooms.find((item) => item.id === contract?.roomId);
     const tenant = tenants.find((item) => item.id === contract?.tenantId);
+    return { contract, property, room, tenant };
+  };
+
+  const getContractLabel = (contractId: string) => {
+    const { property, room, tenant } = getContractParts(contractId);
     return `${property?.name ?? "-"} ${room?.name ?? "-"} · ${tenant?.name ?? "-"}`;
+  };
+
+  const findSmsCandidates = (deposit: SmsDeposit) => {
+    const normalizedRaw = normalizeText(deposit.raw);
+    const normalizedSender = normalizeText(deposit.sender);
+
+    return openPayments
+      .filter((payment) => payment.rentAmount + payment.maintenanceFee === deposit.amount)
+      .sort((a, b) => {
+        const aTenant = normalizeText(getContractParts(a.contractId).tenant?.name ?? "");
+        const bTenant = normalizeText(getContractParts(b.contractId).tenant?.name ?? "");
+        const aStrong = aTenant && (normalizedRaw.includes(aTenant) || normalizedSender.includes(aTenant));
+        const bStrong = bTenant && (normalizedRaw.includes(bTenant) || normalizedSender.includes(bTenant));
+        if (aStrong === bStrong) {
+          return a.dueDate.localeCompare(b.dueDate);
+        }
+        return aStrong ? -1 : 1;
+      })
+      .map((payment) => payment.id);
+  };
+
+  const analyzeSmsText = () => {
+    const deposits = parseSmsDeposits(smsText);
+    const nextMatches = deposits.map((deposit) => {
+      const candidateIds = findSmsCandidates(deposit);
+      return {
+        deposit,
+        candidateIds,
+        selectedPaymentId: candidateIds[0] ?? "",
+        status:
+          candidateIds.length === 1
+            ? "matched"
+            : candidateIds.length > 1
+              ? "ambiguous"
+              : "unmatched",
+      } satisfies SmsMatch;
+    });
+    setSmsMatches(nextMatches);
+    setNotice(
+      nextMatches.length
+        ? `입금 문자 ${nextMatches.length}건을 분석했습니다.`
+        : "인식된 입금 문자가 없습니다. 금액에 '원'이 포함된 문자를 붙여넣어 주세요.",
+    );
+  };
+
+  const applySmsPayment = async (match: SmsMatch) => {
+    const payment = rentPayments.find((item) => item.id === match.selectedPaymentId);
+    if (!payment) {
+      setNotice("선택한 월세 청구를 찾을 수 없습니다.");
+      return;
+    }
+
+    await upsertRentPayment({
+      ...payment,
+      paidDate: match.deposit.paidDate,
+      status: "paid",
+      memo: [payment.memo, `입금 문자 자동 처리: ${match.deposit.sender || "입금자 미확인"}`]
+        .filter(Boolean)
+        .join("\n"),
+    });
+    setSmsMatches((prev) => prev.filter((item) => item.deposit.id !== match.deposit.id));
+    setNotice(`${getContractLabel(payment.contractId)} 월세를 납부 완료로 처리했습니다.`);
   };
 
   return (
@@ -91,7 +200,7 @@ export default function Rents() {
               월세 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              월세와 관리비 청구, 납부, 미납, 연체 상태를 관리합니다.
+              월세와 관리비 청구, 입금 확인, 미납과 연체 상태를 관리합니다.
             </p>
           </div>
           <button
@@ -105,7 +214,7 @@ export default function Rents() {
 
         {contracts.length === 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            월세 등록 전 진행 중인 계약이 필요합니다.
+            월세 등록을 하려면 진행 중인 계약이 먼저 필요합니다.
           </div>
         )}
 
@@ -153,6 +262,106 @@ export default function Rents() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-base font-black text-slate-950">입금 문자 자동 처리</p>
+              <p className="mt-1 text-sm text-slate-500">
+                은행 입금 문자를 붙여넣으면 금액과 임차인 이름을 기준으로 미납 월세를 찾아 납부 처리합니다.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={analyzeSmsText}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white"
+              >
+                문자 분석
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSmsText("");
+                  setSmsMatches([]);
+                }}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700"
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={smsText}
+            onChange={(event) => setSmsText(event.target.value)}
+            placeholder={`예) [국민은행] 06/29 김동자 입금 500,000원 잔액 1,200,000원`}
+            rows={5}
+            className="mt-4 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
+          />
+
+          {smsMatches.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {smsMatches.map((match) => (
+                <div
+                  key={match.deposit.id}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-center">
+                    <div>
+                      <p className="text-sm font-black text-slate-950">
+                        {match.deposit.amount.toLocaleString("ko-KR")}원 ·{" "}
+                        {match.deposit.paidDate}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        입금자: {match.deposit.sender || "문자에서 확인 필요"}
+                      </p>
+                      <p className="mt-2 line-clamp-2 text-xs text-slate-400">
+                        {match.deposit.raw}
+                      </p>
+                    </div>
+
+                    <select
+                      value={match.selectedPaymentId}
+                      onChange={(event) =>
+                        setSmsMatches((prev) =>
+                          prev.map((item) =>
+                            item.deposit.id === match.deposit.id
+                              ? { ...item, selectedPaymentId: event.target.value }
+                              : item,
+                          ),
+                        )
+                      }
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+                    >
+                      <option value="">
+                        {match.status === "unmatched" ? "매칭 없음" : "청구 선택"}
+                      </option>
+                      {match.candidateIds.map((paymentId) => {
+                        const payment = rentPayments.find((item) => item.id === paymentId);
+                        return (
+                          <option key={paymentId} value={paymentId}>
+                            {payment
+                              ? `${getContractLabel(payment.contractId)} · ${payment.dueDate}`
+                              : paymentId}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    <button
+                      type="button"
+                      disabled={!match.selectedPaymentId}
+                      onClick={() => void applySmsPayment(match)}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      납부 처리
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -258,7 +467,7 @@ export default function Rents() {
               <textarea
                 value={form.memo}
                 onChange={(event) => setForm({ ...form, memo: event.target.value })}
-                placeholder="입금자명, 부분납, 특이사항을 입력하세요."
+                placeholder="입금자명, 일부 납부, 특이사항을 입력하세요."
                 rows={3}
                 className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
               />
@@ -289,8 +498,13 @@ export default function Rents() {
                   <p className="mt-2 text-sm font-bold text-slate-700">
                     {(payment.rentAmount + payment.maintenanceFee).toLocaleString("ko-KR")}원
                   </p>
+                  {payment.memo && (
+                    <p className="mt-2 whitespace-pre-line text-xs text-slate-500">
+                      {payment.memo}
+                    </p>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass[payment.status]}`}
                   >
@@ -330,6 +544,89 @@ export default function Rents() {
       </div>
     </MainLayout>
   );
+}
+
+function parseSmsDeposits(text: string): SmsDeposit[] {
+  const chunks = text
+    .split(/\n\s*\n/)
+    .flatMap((chunk) => (chunk.includes("\n") ? chunk.split("\n") : [chunk]))
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+
+  return chunks
+    .map((raw, index) => {
+      const amount = extractAmount(raw);
+      if (!amount) {
+        return null;
+      }
+
+      return {
+        id: `${Date.now()}-${index}`,
+        raw,
+        amount,
+        paidDate: extractDate(raw),
+        sender: extractSender(raw),
+      };
+    })
+    .filter((item): item is SmsDeposit => Boolean(item));
+}
+
+function extractAmount(text: string) {
+  const matches = [...text.matchAll(/([0-9][0-9,]*)\s*원/g)];
+  if (!matches.length) {
+    return 0;
+  }
+
+  const depositMatch =
+    matches.find((match) => {
+      const start = Math.max(0, (match.index ?? 0) - 12);
+      const end = Math.min(text.length, (match.index ?? 0) + match[0].length + 12);
+      return /입금|받음|이체/.test(text.slice(start, end));
+    }) ?? matches[0];
+
+  return Number(depositMatch[1].replace(/,/g, ""));
+}
+
+function extractDate(text: string) {
+  const currentYear = new Date().getFullYear();
+  const fullDate = text.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (fullDate) {
+    return formatDate(Number(fullDate[1]), Number(fullDate[2]), Number(fullDate[3]));
+  }
+
+  const shortDate = text.match(/(\d{1,2})[./-](\d{1,2})/);
+  if (shortDate) {
+    return formatDate(currentYear, Number(shortDate[1]), Number(shortDate[2]));
+  }
+
+  return new Date().toISOString().slice(0, 10);
+}
+
+function extractSender(text: string) {
+  const explicit = text.match(/입금(?:자|인)?\s*[: ]\s*([가-힣A-Za-z0-9]+)/);
+  if (explicit) {
+    return explicit[1];
+  }
+
+  const beforeDeposit = text.match(/([가-힣A-Za-z]{2,12})\s*(?:님)?\s*(?:입금|이체)/);
+  if (beforeDeposit && !bankWords.includes(beforeDeposit[1])) {
+    return beforeDeposit[1];
+  }
+
+  const afterAmount = text.match(/원\s*([가-힣A-Za-z]{2,12})/);
+  if (afterAmount && !bankWords.includes(afterAmount[1])) {
+    return afterAmount[1];
+  }
+
+  return "";
+}
+
+function formatDate(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function normalizeText(value: string) {
+  return value.replace(/\s/g, "").toLowerCase();
 }
 
 function DateField({
