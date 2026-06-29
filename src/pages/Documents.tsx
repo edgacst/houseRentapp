@@ -29,13 +29,7 @@ const kindClass: Record<DocumentKind, string> = {
 };
 
 export default function Documents() {
-  const {
-    properties,
-    rooms,
-    tenants,
-    contracts,
-    expenses,
-  } = useAppData();
+  const { properties, rooms, tenants, contracts, expenses } = useAppData();
   const [keyword, setKeyword] = useState("");
   const [kind, setKind] = useState<"all" | DocumentKind>("all");
 
@@ -99,8 +93,12 @@ export default function Documents() {
   const filteredDocuments = documents.filter((document) => {
     const lowerKeyword = keyword.toLowerCase();
     const matchesKind = kind === "all" || document.kind === kind;
-    const matchesKeyword = [document.name, document.owner, document.detail, kindText[document.kind]]
-      .some((value) => value.toLowerCase().includes(lowerKeyword));
+    const matchesKeyword = [
+      document.name,
+      document.owner,
+      document.detail,
+      kindText[document.kind],
+    ].some((value) => value.toLowerCase().includes(lowerKeyword));
     return matchesKind && matchesKeyword;
   });
 
@@ -126,7 +124,7 @@ export default function Documents() {
             문서함
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            건물 사진, 건물 문서, 계약서, 영수증을 한 곳에서 확인하고 내려받습니다.
+            건물 사진, 건물 문서, 계약서, 영수증을 게시판 형식으로 확인합니다.
           </p>
         </div>
 
@@ -160,61 +158,52 @@ export default function Documents() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="grid grid-cols-[150px_1fr_180px_1.4fr_120px_100px] gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-black text-slate-500">
+            <span>종류</span>
+            <span>파일명</span>
+            <span>대상</span>
+            <span>설명</span>
+            <span>날짜</span>
+            <span className="text-right">관리</span>
+          </div>
+
           {filteredDocuments.length === 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm lg:col-span-2">
+            <div className="p-8 text-center text-sm text-slate-500">
               표시할 문서가 없습니다.
             </div>
           )}
+
           {filteredDocuments.map((document) => (
-            <article
+            <div
               key={document.id}
-              className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+              className="grid grid-cols-[150px_1fr_180px_1.4fr_120px_100px] gap-3 border-b border-slate-100 px-5 py-4 text-sm last:border-b-0"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-black ${kindClass[document.kind]}`}
-                  >
-                    {kindText[document.kind]}
-                  </span>
-                  <h2 className="mt-3 truncate text-lg font-black text-slate-950">
-                    {document.name}
-                  </h2>
-                  <p className="mt-1 text-sm font-bold text-slate-700">
-                    {document.owner}
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-500">
-                    {document.detail}
-                  </p>
-                </div>
-                {document.date && (
-                  <span className="shrink-0 text-xs font-bold text-slate-400">
-                    {document.date}
-                  </span>
-                )}
-              </div>
-
-              {document.data.startsWith("data:image") && (
-                <div className="mt-4 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
-                  <img
-                    src={document.data}
-                    alt={document.name}
-                    className="h-40 w-full object-cover"
-                  />
-                </div>
-              )}
-
+              <span
+                className={`w-fit rounded-full px-3 py-1 text-xs font-black ${kindClass[document.kind]}`}
+              >
+                {kindText[document.kind]}
+              </span>
+              <span className="min-w-0 truncate font-black text-slate-950">
+                {document.name}
+              </span>
+              <span className="min-w-0 truncate font-semibold text-slate-700">
+                {document.owner}
+              </span>
+              <span className="min-w-0 truncate text-slate-500">
+                {document.detail}
+              </span>
+              <span className="text-slate-500">{document.date || "-"}</span>
               <a
                 href={document.data}
                 download={document.name}
-                className="mt-4 block rounded-lg bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white"
+                className="rounded-lg bg-slate-950 px-3 py-2 text-center text-xs font-bold text-white"
               >
                 내려받기
               </a>
-            </article>
+            </div>
           ))}
-        </div>
+        </section>
       </div>
     </MainLayout>
   );
