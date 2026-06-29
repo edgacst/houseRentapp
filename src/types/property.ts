@@ -29,6 +29,12 @@ export type Property = {
   managerName?: string;
   managerPhone?: string;
   memo?: string;
+  purchasePrice?: number;
+  acquisitionTax?: number;
+  brokerageFee?: number;
+  renovationCost?: number;
+  otherPurchaseCost?: number;
+  loanAmount?: number;
   documentNames?: string[];
   documentDataList?: string[];
 };

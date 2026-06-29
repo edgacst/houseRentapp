@@ -116,6 +116,12 @@ export function toApiProperty(property: Property) {
     managerName: property.managerName ?? "",
     managerPhone: property.managerPhone ?? "",
     memo: property.memo ?? "",
+    purchasePrice: property.purchasePrice,
+    acquisitionTax: property.acquisitionTax,
+    brokerageFee: property.brokerageFee,
+    renovationCost: property.renovationCost,
+    otherPurchaseCost: property.otherPurchaseCost,
+    loanAmount: property.loanAmount,
     documentNames: property.documentNames,
     documentDataList: property.documentDataList,
   };

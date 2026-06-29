@@ -23,6 +23,12 @@ const emptyPropertyForm: Omit<Property, "id"> = {
   managerName: "",
   managerPhone: "",
   memo: "",
+  purchasePrice: 0,
+  acquisitionTax: 0,
+  brokerageFee: 0,
+  renovationCost: 0,
+  otherPurchaseCost: 0,
+  loanAmount: 0,
   documentNames: [],
   documentDataList: [],
 };
@@ -47,6 +53,8 @@ function Properties() {
   const imageDataList = form.imageDataList ?? [];
   const documentNames = form.documentNames ?? [];
   const documentDataList = form.documentDataList ?? [];
+  const totalAcquisitionCost = getTotalAcquisitionCost(form);
+  const equityAmount = Math.max(0, totalAcquisitionCost - (form.loanAmount ?? 0));
 
   const filteredProperties = useMemo(() => {
     const keyword = search.toLowerCase();
@@ -209,7 +217,7 @@ function Properties() {
               부동산 관리
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              건물 정보, 사진, 문서, 초기 호실을 등록하고 운영 기준을 관리합니다.
+              건물 정보, 매입 비용, 사진, 문서, 초기 호실을 등록하고 운영 기준을 관리합니다.
             </p>
           </div>
           <button
@@ -304,6 +312,50 @@ function Properties() {
                       setForm({ ...form, parkingAvailable: checked })
                     }
                   />
+                </div>
+              </Section>
+
+              <Section title="매입/투자 비용">
+                <p className="mb-4 text-xs text-slate-500">
+                  다른 임대관리 프로그램도 보통 매입가, 취득세, 중개수수료, 수리비,
+                  기타비용, 대출금을 나눠 기록하고 총투입비와 자기자본을 계산합니다.
+                </p>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <MoneyInput
+                    label="매입가"
+                    value={form.purchasePrice ?? 0}
+                    onChange={(value) => setForm({ ...form, purchasePrice: value })}
+                  />
+                  <MoneyInput
+                    label="취득세/등기비"
+                    value={form.acquisitionTax ?? 0}
+                    onChange={(value) => setForm({ ...form, acquisitionTax: value })}
+                  />
+                  <MoneyInput
+                    label="중개수수료"
+                    value={form.brokerageFee ?? 0}
+                    onChange={(value) => setForm({ ...form, brokerageFee: value })}
+                  />
+                  <MoneyInput
+                    label="수리/리모델링비"
+                    value={form.renovationCost ?? 0}
+                    onChange={(value) => setForm({ ...form, renovationCost: value })}
+                  />
+                  <MoneyInput
+                    label="기타 구입비용"
+                    value={form.otherPurchaseCost ?? 0}
+                    onChange={(value) => setForm({ ...form, otherPurchaseCost: value })}
+                  />
+                  <MoneyInput
+                    label="대출금"
+                    value={form.loanAmount ?? 0}
+                    onChange={(value) => setForm({ ...form, loanAmount: value })}
+                  />
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <InvestmentBox label="총투입비" value={totalAcquisitionCost} />
+                  <InvestmentBox label="대출금" value={form.loanAmount ?? 0} />
+                  <InvestmentBox label="자기자본" value={equityAmount} />
                 </div>
               </Section>
 
@@ -586,6 +638,34 @@ function NumberInput({
   );
 }
 
+function MoneyInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <div className="relative mt-2">
+        <input
+          type="number"
+          value={value}
+          min={0}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="w-full rounded-lg border border-slate-200 px-4 py-3 pr-12 outline-none focus:border-blue-500"
+        />
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+          원
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Toggle({
   label,
   checked,
@@ -605,6 +685,17 @@ function Toggle({
         className="h-5 w-5"
       />
     </label>
+  );
+}
+
+function InvestmentBox({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-4">
+      <p className="text-xs font-bold text-slate-500">{label}</p>
+      <p className="mt-1 text-lg font-black text-slate-950">
+        {value.toLocaleString("ko-KR")}원
+      </p>
+    </div>
   );
 }
 
@@ -662,6 +753,16 @@ function inferFloor(roomName: string) {
   const numeric = match[0];
   if (numeric.length >= 3) return Number(numeric.slice(0, -2)) || 1;
   return Number(numeric[0]) || 1;
+}
+
+function getTotalAcquisitionCost(property: Partial<Property>) {
+  return (
+    (property.purchasePrice ?? 0) +
+    (property.acquisitionTax ?? 0) +
+    (property.brokerageFee ?? 0) +
+    (property.renovationCost ?? 0) +
+    (property.otherPurchaseCost ?? 0)
+  );
 }
 
 async function filesToDataItems(files: File[]) {

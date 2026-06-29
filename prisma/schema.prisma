@@ -82,6 +82,12 @@ model Property {
   managerName String?
   managerPhone String?
   memo String?
+  purchasePrice Int @default(0)
+  acquisitionTax Int @default(0)
+  brokerageFee Int @default(0)
+  renovationCost Int @default(0)
+  otherPurchaseCost Int @default(0)
+  loanAmount Int @default(0)
   documentNames String[]    @default([])
   documentDataList String[] @default([])
   createdAt DateTime     @default(now())

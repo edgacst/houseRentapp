@@ -17,14 +17,14 @@ function PropertyList({ properties, rooms, onEdit, onDelete }: PropertyListProps
           등록된 건물이 없습니다.
         </h2>
         <p className="mt-2 text-slate-500">
-          첫 건물을 등록하면 호실과 계약을 연결할 수 있습니다.
+          첫 건물을 등록하면 호실, 계약, 수납 흐름을 연결할 수 있습니다.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 xl:grid-cols-3">
       {properties.map((property) => (
         <PropertyCard
           key={property.id}
