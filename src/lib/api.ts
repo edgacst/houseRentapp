@@ -15,6 +15,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: "admin" | "user";
+  status: "active" | "suspended" | "withdrawn";
 };
 
 export type AdminUserSummary = {
@@ -22,6 +23,7 @@ export type AdminUserSummary = {
   email: string;
   name: string;
   role: "admin" | "user";
+  status: "active" | "suspended" | "withdrawn";
   createdAt: string;
   counts: {
     properties: number;
@@ -87,6 +89,26 @@ export async function changePassword(
 
 export async function fetchAdminUsers() {
   return request<AdminUserSummary[]>("/api/admin/users");
+}
+
+export async function updateAdminUser(
+  userId: string,
+  data: {
+    role: "admin" | "user";
+    status: "active" | "suspended" | "withdrawn";
+  },
+) {
+  return request<AdminUserSummary>(`/api/admin/users/${userId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resetAdminUserPassword(userId: string, password: string) {
+  await request<void>(`/api/admin/users/${userId}/password`, {
+    method: "PUT",
+    body: JSON.stringify({ password }),
+  });
 }
 
 export async function fetchProperties() {

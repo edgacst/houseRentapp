@@ -42,12 +42,69 @@ async function requireAdminUser(req: express.Request, res: express.Response, nex
   return next();
 }
 
-function toApiUser(user: { id: string; email: string; name: string; role: "ADMIN" | "USER" }) {
+function userStatusToApi(status: "ACTIVE" | "SUSPENDED" | "WITHDRAWN") {
+  return status === "ACTIVE" ? "active" : status === "SUSPENDED" ? "suspended" : "withdrawn";
+}
+
+function userStatusToDb(status: "active" | "suspended" | "withdrawn") {
+  return status === "active" ? "ACTIVE" : status === "suspended" ? "SUSPENDED" : "WITHDRAWN";
+}
+
+function toApiUser(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: "ADMIN" | "USER";
+  status: "ACTIVE" | "SUSPENDED" | "WITHDRAWN";
+}) {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role === "ADMIN" ? "admin" : "user",
+    status: userStatusToApi(user.status),
+  };
+}
+
+async function getAdminUserSummary(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      _count: {
+        select: {
+          properties: true,
+          tenants: true,
+          contracts: true,
+          rentPayments: true,
+          expenses: true,
+        },
+      },
+    },
+  });
+  if (!user) return null;
+
+  const rooms = await prisma.room.count({ where: { userId } });
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role === "ADMIN" ? "admin" : "user",
+    status: userStatusToApi(user.status),
+    createdAt: user.createdAt.toISOString().slice(0, 10),
+    counts: {
+      properties: user._count.properties,
+      rooms,
+      tenants: user._count.tenants,
+      contracts: user._count.contracts,
+      rentPayments: user._count.rentPayments,
+      expenses: user._count.expenses,
+    },
   };
 }
 
@@ -99,6 +156,9 @@ app.post("/api/auth/login", async (req, res) => {
   if (!user || !ok) {
     return res.status(401).json({ message: "이메일 또는 비밀번호가 올바르지 않습니다." });
   }
+  if (user.status !== "ACTIVE") {
+    return res.status(403).json({ message: "사용이 제한된 계정입니다. 관리자에게 문의하세요." });
+  }
 
   res.json({
     token: signToken(user.id),
@@ -109,7 +169,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/me", requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.userId },
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, name: true, role: true, status: true },
   });
   if (!user) return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
   res.json(toApiUser(user));
@@ -126,7 +186,7 @@ app.put("/api/me", requireAuth, async (req, res) => {
   const user = await prisma.user.update({
     where: { id: req.userId },
     data: { name: result.data.name },
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, name: true, role: true, status: true },
   });
   res.json(toApiUser(user));
 });
@@ -139,6 +199,7 @@ app.get("/api/admin/users", requireAuth, requireAdminUser, async (_req, res) => 
       email: true,
       name: true,
       role: true,
+      status: true,
       createdAt: true,
       _count: {
         select: {
@@ -166,6 +227,7 @@ app.get("/api/admin/users", requireAuth, requireAdminUser, async (_req, res) => 
       email: user.email,
       name: user.name,
       role: user.role === "ADMIN" ? "admin" : "user",
+      status: userStatusToApi(user.status),
       createdAt: user.createdAt.toISOString().slice(0, 10),
       counts: {
         properties: user._count.properties,
@@ -177,6 +239,54 @@ app.get("/api/admin/users", requireAuth, requireAdminUser, async (_req, res) => 
       },
     })),
   );
+});
+
+const adminUserUpdateSchema = z.object({
+  role: z.enum(["admin", "user"]),
+  status: z.enum(["active", "suspended", "withdrawn"]),
+});
+
+app.put("/api/admin/users/:id", requireAuth, requireAdminUser, async (req, res) => {
+  const result = adminUserUpdateSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+
+  const id = String(req.params.id);
+  if (id === req.userId && result.data.role !== "admin") {
+    return res.status(400).json({ message: "본인의 관리자 권한은 해제할 수 없습니다." });
+  }
+  if (id === req.userId && result.data.status !== "active") {
+    return res.status(400).json({ message: "본인 계정은 정지하거나 탈퇴 처리할 수 없습니다." });
+  }
+
+  const updated = await prisma.user.updateMany({
+    where: { id },
+    data: {
+      role: result.data.role === "admin" ? "ADMIN" : "USER",
+      status: userStatusToDb(result.data.status),
+    },
+  });
+  if (updated.count === 0) return res.status(404).json({ message: "회원을 찾을 수 없습니다." });
+
+  const summary = await getAdminUserSummary(id);
+  res.json(summary);
+});
+
+const adminPasswordResetSchema = z.object({
+  password: z.string().min(8),
+});
+
+app.put("/api/admin/users/:id/password", requireAuth, requireAdminUser, async (req, res) => {
+  const result = adminPasswordResetSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "비밀번호는 8자 이상이어야 합니다." });
+
+  const id = String(req.params.id);
+  const updated = await prisma.user.updateMany({
+    where: { id },
+    data: { passwordHash: await bcrypt.hash(result.data.password, 12) },
+  });
+  if (updated.count === 0) return res.status(404).json({ message: "회원을 찾을 수 없습니다." });
+
+  res.status(204).send();
 });
 
 const passwordSchema = z.object({
