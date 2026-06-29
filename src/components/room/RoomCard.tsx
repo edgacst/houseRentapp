@@ -1,9 +1,10 @@
-import type { Room } from "../../types/room";
+import type { Room, RoomFinancials } from "../../types/room";
 
 type RoomCardProps = {
   room: Room;
   propertyName?: string;
   tenantName?: string;
+  financials: RoomFinancials;
   onEdit: (room: Room) => void;
   onDelete: (roomId: string) => void;
   onDetail: (room: Room) => void;
@@ -29,10 +30,16 @@ export default function RoomCard({
   room,
   propertyName,
   tenantName,
+  financials,
   onEdit,
   onDelete,
   onDetail,
 }: RoomCardProps) {
+  const hasNoAmount =
+    financials.deposit === 0 &&
+    financials.monthlyRent === 0 &&
+    financials.maintenanceFee === 0;
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -54,11 +61,20 @@ export default function RoomCard({
         </span>
       </div>
 
+      <div className="mb-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+        <span className="text-xs font-bold text-slate-500">
+          {financials.source === "contract" ? "계약 기준 금액" : "호실 기준 금액"}
+        </span>
+        {hasNoAmount && (
+          <span className="text-xs font-bold text-red-600">금액 미입력</span>
+        )}
+      </div>
+
       <div className="space-y-2 text-sm">
         <Info label="임차인" value={tenantName || "-"} />
-        <Info label="보증금" value={`${formatMoney(room.deposit)}원`} />
-        <Info label="월세" value={`${formatMoney(room.monthlyRent)}원`} />
-        <Info label="관리비" value={`${formatMoney(room.maintenanceFee)}원`} />
+        <Info label="보증금" value={`${formatMoney(financials.deposit)}원`} />
+        <Info label="월세" value={`${formatMoney(financials.monthlyRent)}원`} />
+        <Info label="관리비" value={`${formatMoney(financials.maintenanceFee)}원`} />
       </div>
 
       {room.memo && (

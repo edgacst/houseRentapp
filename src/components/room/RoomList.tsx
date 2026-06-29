@@ -1,10 +1,11 @@
-import type { Room } from "../../types/room";
+import type { Room, RoomFinancials } from "../../types/room";
 import RoomCard from "./RoomCard";
 
 type RoomListProps = {
   rooms: Room[];
   getPropertyName?: (propertyId: string) => string | undefined;
   getTenantName?: (roomId: string) => string | undefined;
+  getFinancials: (room: Room) => RoomFinancials;
   onEdit: (room: Room) => void;
   onDelete: (roomId: string) => void;
   onDetail: (room: Room) => void;
@@ -14,6 +15,7 @@ export default function RoomList({
   rooms,
   getPropertyName,
   getTenantName,
+  getFinancials,
   onEdit,
   onDelete,
   onDetail,
@@ -34,6 +36,7 @@ export default function RoomList({
           room={room}
           propertyName={getPropertyName?.(room.propertyId)}
           tenantName={getTenantName?.(room.id)}
+          financials={getFinancials(room)}
           onEdit={onEdit}
           onDelete={onDelete}
           onDetail={onDetail}

@@ -4,7 +4,7 @@ import RoomForm from "../components/room/RoomForm";
 import RoomList from "../components/room/RoomList";
 import { useAppData } from "../context/AppContext";
 import MainLayout from "../layouts/MainLayout";
-import type { Room, RoomStatus } from "../types/room";
+import type { Room, RoomFinancials, RoomStatus } from "../types/room";
 
 const statusOptions: Array<{ label: string; value: RoomStatus | "all" }> = [
   { label: "전체", value: "all" },
@@ -24,6 +24,16 @@ export default function Rooms() {
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
+  const activeContractsByRoom = useMemo(
+    () =>
+      new Map(
+        contracts
+          .filter((contract) => contract.status === "active")
+          .map((contract) => [contract.roomId, contract]),
+      ),
+    [contracts],
+  );
+
   const activePropertyId =
     propertyId === "all" ? properties[0]?.id ?? "" : propertyId;
   const activeProperty =
@@ -31,20 +41,44 @@ export default function Rooms() {
       ? null
       : properties.find((property) => property.id === propertyId) ?? null;
 
+  const getRoomFinancials = (room: Room): RoomFinancials => {
+    const activeContract = activeContractsByRoom.get(room.id);
+    if (activeContract) {
+      return {
+        deposit: activeContract.deposit,
+        monthlyRent: activeContract.monthlyRent,
+        maintenanceFee: activeContract.maintenanceFee,
+        source: "contract",
+      };
+    }
+
+    return {
+      deposit: room.deposit,
+      monthlyRent: room.monthlyRent,
+      maintenanceFee: room.maintenanceFee,
+      source: "room",
+    };
+  };
+
   const filteredRooms = useMemo(() => {
     const lowerKeyword = keyword.toLowerCase();
     return rooms.filter((room) => {
       const property = properties.find((item) => item.id === room.propertyId);
+      const activeContract = activeContractsByRoom.get(room.id);
+      const tenantName = tenants.find(
+        (tenant) => tenant.id === activeContract?.tenantId,
+      )?.name;
       const matchesKeyword =
         room.name.toLowerCase().includes(lowerKeyword) ||
         room.type.toLowerCase().includes(lowerKeyword) ||
         property?.name.toLowerCase().includes(lowerKeyword) ||
+        tenantName?.toLowerCase().includes(lowerKeyword) ||
         room.memo?.toLowerCase().includes(lowerKeyword);
       const matchesStatus = status === "all" || room.status === status;
       const matchesProperty = propertyId === "all" || room.propertyId === propertyId;
       return matchesKeyword && matchesStatus && matchesProperty;
     });
-  }, [keyword, properties, propertyId, rooms, status]);
+  }, [keyword, properties, propertyId, rooms, status, activeContractsByRoom, tenants]);
 
   const summary = {
     total: filteredRooms.length,
@@ -52,15 +86,16 @@ export default function Rooms() {
     occupied: filteredRooms.filter((room) => room.status === "occupied").length,
     monthlyRevenue: filteredRooms
       .filter((room) => room.status === "occupied")
-      .reduce((sum, room) => sum + room.monthlyRent + room.maintenanceFee, 0),
+      .reduce((sum, room) => {
+        const financials = getRoomFinancials(room);
+        return sum + financials.monthlyRent + financials.maintenanceFee;
+      }, 0),
   };
 
-  const getTenantName = (roomId: string) => {
-    const contract = contracts.find(
-      (item) => item.roomId === roomId && item.status === "active",
-    );
+  function getTenantName(roomId: string) {
+    const contract = activeContractsByRoom.get(roomId);
     return tenants.find((tenant) => tenant.id === contract?.tenantId)?.name;
-  };
+  }
 
   const getPropertyName = (targetPropertyId: string) =>
     properties.find((property) => property.id === targetPropertyId)?.name;
@@ -106,13 +141,18 @@ export default function Rooms() {
               <p className="mt-1 text-sm text-slate-600">
                 {activeProperty
                   ? `${activeProperty.address} · ${activeProperty.type}`
-                  : "모든 건물의 호실을 함께 보고 있습니다. 아래 카드마다 건물명이 표시됩니다."}
+                  : "모든 건물의 호실을 함께 보고 있습니다. 카드마다 건물명이 표시됩니다."}
               </p>
             </div>
             <p className="text-sm font-bold text-blue-700">
               {filteredRooms.length}개 호실 표시 중
             </p>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          임대 중 호실의 금액은 활성 계약의 보증금, 월세, 관리비를 우선 참조합니다.
+          계약이 없는 호실은 호실 기본 금액을 표시합니다.
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -129,7 +169,7 @@ export default function Rooms() {
           <input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder="호실명, 건물명, 유형, 메모 검색"
+            placeholder="호실명, 건물명, 임차인, 유형, 메모 검색"
             className="flex-1 rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           />
           <select
@@ -179,6 +219,7 @@ export default function Rooms() {
         {selectedRoom && (
           <RoomDetail
             room={selectedRoom}
+            financials={getRoomFinancials(selectedRoom)}
             propertyName={getPropertyName(selectedRoom.propertyId)}
             tenantName={getTenantName(selectedRoom.id)}
             onClose={() => setSelectedRoom(null)}
@@ -189,6 +230,7 @@ export default function Rooms() {
           rooms={filteredRooms}
           getPropertyName={getPropertyName}
           getTenantName={getTenantName}
+          getFinancials={getRoomFinancials}
           onEdit={(room) => {
             setEditingRoom(room);
             setIsFormOpen(true);

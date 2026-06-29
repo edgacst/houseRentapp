@@ -62,9 +62,15 @@ export default function RoomForm({
             {editingRoom ? "호실 수정" : "호실 등록"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            대상 건물: <span className="font-bold text-slate-800">{propertyName ?? "-"}</span>
+            대상 건물:{" "}
+            <span className="font-bold text-slate-800">{propertyName ?? "-"}</span>
           </p>
         </div>
+      </div>
+
+      <div className="mb-5 rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+        여기 입력한 보증금, 월세, 관리비는 계약이 없는 경우의 기본 금액입니다.
+        계약이 연결되면 호실관리 카드에는 계약 금액이 우선 표시됩니다.
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -86,8 +92,8 @@ export default function RoomForm({
           <span className="text-sm font-bold text-slate-700">호실 유형</span>
           <select
             value={form.type}
-            onChange={(e) =>
-              setForm({ ...form, type: e.target.value as RoomType })
+            onChange={(event) =>
+              setForm({ ...form, type: event.target.value as RoomType })
             }
             className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
@@ -101,8 +107,8 @@ export default function RoomForm({
           <span className="text-sm font-bold text-slate-700">호실 상태</span>
           <select
             value={form.status}
-            onChange={(e) =>
-              setForm({ ...form, status: e.target.value as RoomStatus })
+            onChange={(event) =>
+              setForm({ ...form, status: event.target.value as RoomStatus })
             }
             className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
@@ -115,21 +121,21 @@ export default function RoomForm({
         </label>
 
         <NumberField
-          label="보증금"
+          label="기본 보증금"
           value={form.deposit}
           placeholder="예: 5000000"
           suffix="원"
           onChange={(value) => setForm({ ...form, deposit: value })}
         />
         <NumberField
-          label="월세"
+          label="기본 월세"
           value={form.monthlyRent}
           placeholder="예: 450000"
           suffix="원"
           onChange={(value) => setForm({ ...form, monthlyRent: value })}
         />
         <NumberField
-          label="관리비"
+          label="기본 관리비"
           value={form.maintenanceFee}
           placeholder="예: 50000"
           suffix="원"
@@ -148,7 +154,7 @@ export default function RoomForm({
         <span className="text-sm font-bold text-slate-700">메모</span>
         <textarea
           value={form.memo}
-          onChange={(e) => setForm({ ...form, memo: e.target.value })}
+          onChange={(event) => setForm({ ...form, memo: event.target.value })}
           placeholder="수리 예정, 특이사항 등을 입력하세요."
           rows={3}
           className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
@@ -193,7 +199,7 @@ function TextField({
       <input
         value={value}
         required={required}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
       />
@@ -221,7 +227,7 @@ function NumberField({
         <input
           type="number"
           value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(event) => onChange(Number(event.target.value))}
           placeholder={placeholder}
           className={`w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900 ${
             suffix ? "pr-12" : ""

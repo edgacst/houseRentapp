@@ -1,7 +1,8 @@
-import type { Room } from "../../types/room";
+import type { Room, RoomFinancials } from "../../types/room";
 
 type RoomDetailProps = {
   room: Room | null;
+  financials?: RoomFinancials;
   propertyName?: string;
   tenantName?: string;
   onClose: () => void;
@@ -18,11 +19,19 @@ const formatMoney = (value: number) => value.toLocaleString("ko-KR");
 
 export default function RoomDetail({
   room,
+  financials,
   propertyName,
   tenantName,
   onClose,
 }: RoomDetailProps) {
   if (!room) return null;
+
+  const displayFinancials = financials ?? {
+    deposit: room.deposit,
+    monthlyRent: room.monthlyRent,
+    maintenanceFee: room.maintenanceFee,
+    source: "room" as const,
+  };
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
@@ -44,16 +53,27 @@ export default function RoomDetail({
         </button>
       </div>
 
+      <div className="mb-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+        현재 금액은{" "}
+        <span className="font-black">
+          {displayFinancials.source === "contract" ? "계약 기준" : "호실 기준"}
+        </span>
+        으로 표시됩니다.
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Info label="상태" value={statusText[room.status]} />
         <Info label="임차인" value={tenantName || "-"} />
         <Info label="면적" value={`${room.area}㎡`} />
-        <Info label="보증금" value={`${formatMoney(room.deposit)}원`} />
-        <Info label="월세" value={`${formatMoney(room.monthlyRent)}원`} />
-        <Info label="관리비" value={`${formatMoney(room.maintenanceFee)}원`} />
+        <Info label="보증금" value={`${formatMoney(displayFinancials.deposit)}원`} />
+        <Info label="월세" value={`${formatMoney(displayFinancials.monthlyRent)}원`} />
+        <Info
+          label="관리비"
+          value={`${formatMoney(displayFinancials.maintenanceFee)}원`}
+        />
         <Info
           label="월 청구액"
-          value={`${formatMoney(room.monthlyRent + room.maintenanceFee)}원`}
+          value={`${formatMoney(displayFinancials.monthlyRent + displayFinancials.maintenanceFee)}원`}
         />
       </div>
 

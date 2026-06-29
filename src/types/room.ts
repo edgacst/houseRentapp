@@ -15,3 +15,10 @@ export type Room = {
   area: number;
   memo?: string;
 };
+
+export type RoomFinancials = {
+  deposit: number;
+  monthlyRent: number;
+  maintenanceFee: number;
+  source: "contract" | "room";
+};
