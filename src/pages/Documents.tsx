@@ -159,7 +159,8 @@ export default function Documents() {
         </div>
 
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="grid grid-cols-[150px_1fr_180px_1.4fr_120px_100px] gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-black text-slate-500">
+          <div className="grid grid-cols-[72px_130px_1fr_180px_1.3fr_110px_100px] gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-black text-slate-500">
+            <span>미리보기</span>
             <span>종류</span>
             <span>파일명</span>
             <span>대상</span>
@@ -177,8 +178,9 @@ export default function Documents() {
           {filteredDocuments.map((document) => (
             <div
               key={document.id}
-              className="grid grid-cols-[150px_1fr_180px_1.4fr_120px_100px] gap-3 border-b border-slate-100 px-5 py-4 text-sm last:border-b-0"
+              className="grid grid-cols-[72px_130px_1fr_180px_1.3fr_110px_100px] items-center gap-3 border-b border-slate-100 px-5 py-4 text-sm last:border-b-0"
             >
+              <Thumbnail document={document} />
               <span
                 className={`w-fit rounded-full px-3 py-1 text-xs font-black ${kindClass[document.kind]}`}
               >
@@ -216,6 +218,38 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">
         {value}
       </p>
+    </div>
+  );
+}
+
+function Thumbnail({ document }: { document: ManagedDocument }) {
+  const isImage = document.data.startsWith("data:image");
+
+  if (!isImage) {
+    return (
+      <div className="grid h-12 w-12 place-items-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-black text-slate-500">
+        FILE
+      </div>
+    );
+  }
+
+  return (
+    <div className="group relative h-12 w-12">
+      <img
+        src={document.data}
+        alt={document.name}
+        className="h-12 w-12 rounded-lg border border-slate-200 object-cover"
+      />
+      <div className="pointer-events-none absolute left-14 top-1/2 z-30 hidden w-80 -translate-y-1/2 rounded-lg border border-slate-200 bg-white p-2 shadow-xl group-hover:block">
+        <img
+          src={document.data}
+          alt={document.name}
+          className="max-h-80 w-full rounded-md object-contain"
+        />
+        <p className="mt-2 truncate px-1 text-xs font-bold text-slate-600">
+          {document.name}
+        </p>
+      </div>
     </div>
   );
 }
