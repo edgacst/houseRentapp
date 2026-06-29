@@ -1,5 +1,6 @@
 import type {
   Contract,
+  Expense,
   MaintenanceCharge,
   Property,
   RentPayment,
@@ -217,5 +218,21 @@ export function toApiMaintenanceCharge(charge: MaintenanceCharge) {
     status: paymentStatusFromDb[charge.status],
     paidDate: charge.paidDate?.toISOString().slice(0, 10) ?? "",
     memo: charge.memo ?? "",
+  };
+}
+
+export function toApiExpense(expense: Expense) {
+  return {
+    id: expense.id,
+    propertyId: expense.propertyId,
+    roomId: expense.roomId ?? "",
+    title: expense.title,
+    category: expense.category,
+    expenseDate: expense.expenseDate.toISOString().slice(0, 10),
+    amount: expense.amount,
+    vendor: expense.vendor ?? "",
+    memo: expense.memo ?? "",
+    receiptName: expense.receiptName ?? "",
+    receiptData: expense.receiptData ?? "",
   };
 }

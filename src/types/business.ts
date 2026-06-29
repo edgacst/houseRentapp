@@ -52,3 +52,29 @@ export type MaintenanceCharge = {
   paidDate?: string;
   memo?: string;
 };
+
+export type ExpenseCategory =
+  | "repair"
+  | "tax"
+  | "loan_interest"
+  | "insurance"
+  | "brokerage"
+  | "cleaning"
+  | "utility"
+  | "management"
+  | "supplies"
+  | "other";
+
+export type Expense = {
+  id: string;
+  propertyId: string;
+  roomId?: string;
+  title: string;
+  category: ExpenseCategory;
+  expenseDate: string;
+  amount: number;
+  vendor?: string;
+  memo?: string;
+  receiptName?: string;
+  receiptData?: string;
+};

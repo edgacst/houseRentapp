@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireAuth, signToken } from "./auth.js";
 import {
   toApiContract,
+  toApiExpense,
   toApiMaintenanceCharge,
   toApiProperty,
   toApiRentPayment,
@@ -728,6 +729,121 @@ app.delete("/api/maintenance-charges/:id", requireAuth, async (req, res) => {
     where: { id, userId: req.userId },
   });
   if (deleted.count === 0) return res.status(404).json({ message: "관리비 청구를 찾을 수 없습니다." });
+  res.status(204).send();
+});
+
+const expenseSchema = z.object({
+  propertyId: z.string().min(1),
+  roomId: z.string().optional(),
+  title: z.string().min(1),
+  category: z.enum([
+    "repair",
+    "tax",
+    "loan_interest",
+    "insurance",
+    "brokerage",
+    "cleaning",
+    "utility",
+    "management",
+    "supplies",
+    "other",
+  ]),
+  expenseDate: z.string().min(1),
+  amount: z.number().int().nonnegative(),
+  vendor: z.string().optional(),
+  memo: z.string().optional(),
+  receiptName: z.string().optional(),
+  receiptData: z.string().optional(),
+});
+
+app.get("/api/expenses", requireAuth, async (req, res) => {
+  const expenses = await prisma.expense.findMany({
+    where: { userId: req.userId },
+    orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
+  });
+  res.json(expenses.map(toApiExpense));
+});
+
+app.post("/api/expenses", requireAuth, async (req, res) => {
+  const result = expenseSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+
+  const property = await prisma.property.findFirst({
+    where: { id: result.data.propertyId, userId: req.userId },
+  });
+  if (!property) return res.status(404).json({ message: "건물을 찾을 수 없습니다." });
+
+  if (result.data.roomId) {
+    const room = await prisma.room.findFirst({
+      where: { id: result.data.roomId, propertyId: result.data.propertyId, userId: req.userId },
+    });
+    if (!room) return res.status(404).json({ message: "호실을 찾을 수 없습니다." });
+  }
+
+  const expense = await prisma.expense.create({
+    data: {
+      userId: req.userId!,
+      propertyId: result.data.propertyId,
+      roomId: result.data.roomId || null,
+      title: result.data.title,
+      category: result.data.category,
+      expenseDate: new Date(result.data.expenseDate),
+      amount: result.data.amount,
+      vendor: result.data.vendor,
+      memo: result.data.memo,
+      receiptName: result.data.receiptName,
+      receiptData: result.data.receiptData,
+    },
+  });
+  res.status(201).json(toApiExpense(expense));
+});
+
+app.put("/api/expenses/:id", requireAuth, async (req, res) => {
+  const result = expenseSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });
+  const id = String(req.params.id);
+
+  const expense = await prisma.expense.findFirst({
+    where: { id, userId: req.userId },
+  });
+  if (!expense) return res.status(404).json({ message: "지출 내역을 찾을 수 없습니다." });
+
+  const property = await prisma.property.findFirst({
+    where: { id: result.data.propertyId, userId: req.userId },
+  });
+  if (!property) return res.status(404).json({ message: "건물을 찾을 수 없습니다." });
+
+  if (result.data.roomId) {
+    const room = await prisma.room.findFirst({
+      where: { id: result.data.roomId, propertyId: result.data.propertyId, userId: req.userId },
+    });
+    if (!room) return res.status(404).json({ message: "호실을 찾을 수 없습니다." });
+  }
+
+  const updated = await prisma.expense.update({
+    where: { id },
+    data: {
+      propertyId: result.data.propertyId,
+      roomId: result.data.roomId || null,
+      title: result.data.title,
+      category: result.data.category,
+      expenseDate: new Date(result.data.expenseDate),
+      amount: result.data.amount,
+      vendor: result.data.vendor,
+      memo: result.data.memo,
+      receiptName: result.data.receiptName,
+      receiptData: result.data.receiptData,
+    },
+  });
+  res.json(toApiExpense(updated));
+});
+
+app.delete("/api/expenses/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const deleted = await prisma.expense.deleteMany({
+    where: { id, userId: req.userId },
+  });
+  if (deleted.count === 0) return res.status(404).json({ message: "지출 내역을 찾을 수 없습니다." });
   res.status(204).send();
 });
 

@@ -4,6 +4,7 @@ import Account from "./pages/Account";
 import Auth from "./pages/Auth";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
+import Expenses from "./pages/Expenses";
 import Maintenance from "./pages/Maintenance";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="/tenants" element={<Tenants />} />
         <Route path="/contracts" element={<Contracts />} />
         <Route path="/rents" element={<Rents />} />
+        <Route path="/expenses" element={<Expenses />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/statistics" element={<Statistics />} />
         <Route path="/account" element={<Account />} />

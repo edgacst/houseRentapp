@@ -2,6 +2,7 @@ import type { Property } from "../types/property";
 import type { Room } from "../types/room";
 import type {
   Contract,
+  Expense,
   MaintenanceCharge,
   RentPayment,
   Tenant,
@@ -221,6 +222,30 @@ export async function deleteMaintenanceChargeApi(chargeId: string) {
   });
 }
 
+export async function fetchExpenses() {
+  return request<Expense[]>("/api/expenses");
+}
+
+export async function createExpense(expense: Expense) {
+  return request<Expense>("/api/expenses", {
+    method: "POST",
+    body: JSON.stringify(toExpensePayload(expense)),
+  });
+}
+
+export async function updateExpenseApi(expense: Expense) {
+  return request<Expense>(`/api/expenses/${expense.id}`, {
+    method: "PUT",
+    body: JSON.stringify(toExpensePayload(expense)),
+  });
+}
+
+export async function deleteExpenseApi(expenseId: string) {
+  await request<void>(`/api/expenses/${expenseId}`, {
+    method: "DELETE",
+  });
+}
+
 async function request<T>(path: string, options: RequestInit = {}) {
   const token = getStoredToken();
   const response = await fetch(path, {
@@ -337,5 +362,20 @@ function toMaintenanceChargePayload(charge: MaintenanceCharge) {
     status: charge.status,
     paidDate: charge.paidDate,
     memo: charge.memo,
+  };
+}
+
+function toExpensePayload(expense: Expense) {
+  return {
+    propertyId: expense.propertyId,
+    roomId: expense.roomId,
+    title: expense.title,
+    category: expense.category,
+    expenseDate: expense.expenseDate,
+    amount: expense.amount,
+    vendor: expense.vendor,
+    memo: expense.memo,
+    receiptName: expense.receiptName,
+    receiptData: expense.receiptData,
   };
 }

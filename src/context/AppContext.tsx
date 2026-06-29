@@ -10,18 +10,21 @@ import {
   changePassword,
   clearStoredToken,
   createContract,
+  createExpense,
   createMaintenanceCharge,
   createProperty,
   createRentPayment,
   createRoom,
   createTenant,
   deleteContractApi,
+  deleteExpenseApi,
   deleteMaintenanceChargeApi,
   deletePropertyApi,
   deleteRentPaymentApi,
   deleteRoomApi,
   deleteTenantApi,
   fetchContracts,
+  fetchExpenses,
   fetchMaintenanceCharges,
   fetchProperties,
   fetchRentPayments,
@@ -34,6 +37,7 @@ import {
   register,
   storeToken,
   updateContractApi,
+  updateExpenseApi,
   updateMaintenanceChargeApi,
   updateMe,
   updatePropertyApi,
@@ -44,6 +48,7 @@ import {
 } from "../lib/api";
 import type {
   Contract,
+  Expense,
   MaintenanceCharge,
   RentPayment,
   Tenant,
@@ -62,6 +67,7 @@ type AppContextValue = {
   contracts: Contract[];
   rentPayments: RentPayment[];
   maintenanceCharges: MaintenanceCharge[];
+  expenses: Expense[];
   loginWithPassword: (email: string, password: string) => Promise<void>;
   registerWithPassword: (
     name: string,
@@ -89,6 +95,8 @@ type AppContextValue = {
   generateMonthlyRentPayments: (month: string) => Promise<number>;
   upsertMaintenanceCharge: (charge: MaintenanceCharge) => Promise<void>;
   deleteMaintenanceCharge: (chargeId: string) => Promise<void>;
+  upsertExpense: (expense: Expense) => Promise<void>;
+  deleteExpense: (expenseId: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -104,6 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [rentPayments, setRentPayments] = useState<RentPayment[]>([]);
   const [maintenanceCharges, setMaintenanceCharges] = useState<MaintenanceCharge[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   const clearWorkspace = () => {
     setProperties([]);
@@ -112,6 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setContracts([]);
     setRentPayments([]);
     setMaintenanceCharges([]);
+    setExpenses([]);
   };
 
   const reloadWorkspace = async () => {
@@ -124,6 +134,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nextContracts,
         nextRentPayments,
         nextMaintenanceCharges,
+        nextExpenses,
       ] = await Promise.all([
         fetchProperties(),
         fetchRooms(),
@@ -131,6 +142,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         fetchContracts(),
         fetchRentPayments(),
         fetchMaintenanceCharges(),
+        fetchExpenses(),
       ]);
       setProperties(nextProperties);
       setRooms(nextRooms);
@@ -138,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContracts(nextContracts);
       setRentPayments(nextRentPayments);
       setMaintenanceCharges(nextMaintenanceCharges);
+      setExpenses(nextExpenses);
     } finally {
       setIsDataLoading(false);
     }
@@ -178,6 +191,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       contracts,
       rentPayments,
       maintenanceCharges,
+      expenses,
       loginWithPassword: async (email, password) => {
         const response = await login(email, password);
         storeToken(response.token);
@@ -234,6 +248,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setMaintenanceCharges((prev) =>
           prev.filter((charge) => charge.propertyId !== propertyId),
         );
+        setExpenses((prev) =>
+          prev.filter((expense) => expense.propertyId !== propertyId),
+        );
       },
       upsertRoom: async (room) => {
         const nextRoom = room.id
@@ -261,6 +278,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setMaintenanceCharges((prev) =>
           prev.map((charge) =>
             charge.roomId === roomId ? { ...charge, roomId: "" } : charge,
+          ),
+        );
+        setExpenses((prev) =>
+          prev.map((expense) =>
+            expense.roomId === roomId ? { ...expense, roomId: "" } : expense,
           ),
         );
       },
@@ -363,10 +385,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prev.filter((charge) => charge.id !== chargeId),
         );
       },
+      upsertExpense: async (expense) => {
+        const nextExpense = expense.id
+          ? await updateExpenseApi(expense)
+          : await createExpense(expense);
+        setExpenses((prev) => {
+          const exists = prev.some((item) => item.id === nextExpense.id);
+          return exists
+            ? prev.map((item) => (item.id === nextExpense.id ? nextExpense : item))
+            : [nextExpense, ...prev];
+        });
+      },
+      deleteExpense: async (expenseId) => {
+        await deleteExpenseApi(expenseId);
+        setExpenses((prev) => prev.filter((expense) => expense.id !== expenseId));
+      },
     }),
     [
       authError,
       contracts,
+      expenses,
       isBootstrapping,
       isDataLoading,
       maintenanceCharges,
