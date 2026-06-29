@@ -14,6 +14,23 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string;
+  role: "admin" | "user";
+};
+
+export type AdminUserSummary = {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "user";
+  createdAt: string;
+  counts: {
+    properties: number;
+    rooms: number;
+    tenants: number;
+    contracts: number;
+    rentPayments: number;
+    expenses: number;
+  };
 };
 
 export type AuthResponse = {
@@ -66,6 +83,10 @@ export async function changePassword(
     method: "PUT",
     body: JSON.stringify({ currentPassword, nextPassword }),
   });
+}
+
+export async function fetchAdminUsers() {
+  return request<AdminUserSummary[]>("/api/admin/users");
 }
 
 export async function fetchProperties() {

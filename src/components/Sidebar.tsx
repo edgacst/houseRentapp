@@ -14,6 +14,10 @@ const menus = [
   { name: "계정", path: "/account", icon: "A" },
 ];
 
+const adminMenus = [
+  { name: "회원관리", path: "/admin/users", icon: "U" },
+];
+
 function Sidebar() {
   const { user, logout } = useAppData();
 
@@ -34,7 +38,7 @@ function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4">
-        {menus.map((menu) => (
+        {[...menus, ...(user?.role === "admin" ? adminMenus : [])].map((menu) => (
           <NavLink
             key={menu.path}
             to={menu.path}

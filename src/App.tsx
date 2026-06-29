@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppProvider, useAppData } from "./context/AppContext";
 import Account from "./pages/Account";
+import AdminUsers from "./pages/AdminUsers";
 import Auth from "./pages/Auth";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/statistics" element={<Statistics />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
