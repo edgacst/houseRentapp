@@ -1,33 +1,55 @@
 import { useState } from "react";
 import { useAppData } from "../context/AppContext";
+import { requestPasswordReset } from "../lib/api";
+
+type AuthMode = "login" | "register" | "forgot";
 
 export default function Auth() {
   const { loginWithPassword, registerWithPassword } = useAppData();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isRegister = mode === "register";
+  const isForgot = mode === "forgot";
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setNotice("");
+    setTemporaryPassword("");
     setIsSubmitting(true);
 
     try {
+      if (isForgot) {
+        const result = await requestPasswordReset(email);
+        setTemporaryPassword(result.temporaryPassword);
+        setNotice("임시 비밀번호가 발급되었습니다. 아래 비밀번호로 로그인하세요.");
+        return;
+      }
+
       if (isRegister) {
         await registerWithPassword(name, email, password);
       } else {
         await loginWithPassword(email, password);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "로그인에 실패했습니다.");
+      setError(err instanceof Error ? err.message : "요청을 처리하지 못했습니다.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const switchMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setError("");
+    setNotice("");
+    setTemporaryPassword("");
   };
 
   return (
@@ -44,13 +66,12 @@ export default function Auth() {
         </div>
 
         <div className="max-w-xl">
-          <p className="text-sm font-bold text-blue-300">임대 관리의 기준점</p>
+          <p className="text-sm font-bold text-blue-300">임대 관리의 기준</p>
           <h1 className="mt-4 text-5xl font-black tracking-tight">
             건물, 호실, 계약, 수납을 하나의 흐름으로 관리하세요.
           </h1>
           <p className="mt-5 text-base leading-7 text-slate-300">
-            운영자는 오늘 처리해야 할 미납, 공실, 계약 만료를 빠르게
-            확인하고 다음 액션으로 이동할 수 있습니다.
+            운영자는 오늘 처리해야 할 미납, 공실, 계약 만료를 빠르게 확인하고 다음 액션으로 이동할 수 있습니다.
           </p>
         </div>
 
@@ -73,13 +94,23 @@ export default function Auth() {
           <div className="rounded-lg border border-slate-200 bg-white p-7 shadow-sm">
             <div>
               <p className="text-sm font-bold text-blue-600">
-                {isRegister ? "새 계정" : "다시 오신 것을 환영합니다"}
+                {isRegister
+                  ? "새 계정"
+                  : isForgot
+                    ? "계정 복구"
+                    : "다시 오신 것을 환영합니다"}
               </p>
               <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
-                {isRegister ? "계정 만들기" : "로그인"}
+                {isRegister
+                  ? "계정 만들기"
+                  : isForgot
+                    ? "비밀번호 찾기"
+                    : "로그인"}
               </h2>
               <p className="mt-2 text-sm text-slate-500">
-                내 건물과 호실 데이터를 안전하게 저장합니다.
+                {isForgot
+                  ? "가입 이메일을 입력하면 임시 비밀번호를 발급합니다."
+                  : "내 건물과 호실 데이터를 안전하게 저장합니다."}
               </p>
             </div>
 
@@ -101,19 +132,34 @@ export default function Auth() {
                 placeholder="owner@example.com"
                 autoComplete="email"
               />
-              <Field
-                label="비밀번호"
-                type="password"
-                value={password}
-                onChange={setPassword}
-                placeholder="8자 이상"
-                autoComplete={isRegister ? "new-password" : "current-password"}
-              />
+              {!isForgot && (
+                <Field
+                  label="비밀번호"
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="8자 이상"
+                  autoComplete={isRegister ? "new-password" : "current-password"}
+                />
+              )}
 
               {error && (
                 <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
                   {error}
                 </p>
+              )}
+              {notice && (
+                <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                  {notice}
+                </p>
+              )}
+              {temporaryPassword && (
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-xs font-bold text-blue-700">임시 비밀번호</p>
+                  <p className="mt-2 select-all rounded-md bg-white px-3 py-2 font-mono text-sm font-black text-slate-950">
+                    {temporaryPassword}
+                  </p>
+                </div>
               )}
 
               <button
@@ -121,20 +167,40 @@ export default function Auth() {
                 disabled={isSubmitting}
                 className="w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:bg-slate-400"
               >
-                {isSubmitting ? "처리 중" : isRegister ? "회원가입" : "로그인"}
+                {isSubmitting
+                  ? "처리 중"
+                  : isRegister
+                    ? "회원가입"
+                    : isForgot
+                      ? "임시 비밀번호 발급"
+                      : "로그인"}
               </button>
             </form>
 
-            <button
-              type="button"
-              onClick={() => {
-                setMode(isRegister ? "login" : "register");
-                setError("");
-              }}
-              className="mt-5 w-full text-center text-sm font-bold text-blue-600"
-            >
-              {isRegister ? "이미 계정이 있습니다" : "새 계정 만들기"}
-            </button>
+            <div className="mt-5 grid gap-2 text-center text-sm font-bold">
+              {isForgot ? (
+                <button type="button" onClick={() => switchMode("login")} className="text-blue-600">
+                  로그인으로 돌아가기
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => switchMode(isRegister ? "login" : "register")}
+                  className="text-blue-600"
+                >
+                  {isRegister ? "이미 계정이 있습니다" : "새 계정 만들기"}
+                </button>
+              )}
+              {!isRegister && !isForgot && (
+                <button
+                  type="button"
+                  onClick={() => switchMode("forgot")}
+                  className="text-slate-500 hover:text-slate-950"
+                >
+                  비밀번호를 잊으셨나요?
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </section>

@@ -143,6 +143,36 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const passwordResetSchema = z.object({
+  email: z.string().email(),
+});
+
+function createTemporaryPassword() {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `HR${random}!${new Date().getFullYear()}`;
+}
+
+app.post("/api/auth/password-reset", async (req, res) => {
+  const result = passwordResetSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ message: "이메일을 확인하세요." });
+
+  const user = await prisma.user.findUnique({
+    where: { email: result.data.email },
+  });
+  if (!user) return res.status(404).json({ message: "가입된 이메일을 찾을 수 없습니다." });
+  if (user.status !== "ACTIVE") {
+    return res.status(403).json({ message: "사용이 제한된 계정입니다. 관리자에게 문의하세요." });
+  }
+
+  const temporaryPassword = createTemporaryPassword();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(temporaryPassword, 12) },
+  });
+
+  res.json({ temporaryPassword });
+});
+
 app.post("/api/auth/login", async (req, res) => {
   const result = loginSchema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ message: "입력값을 확인하세요." });

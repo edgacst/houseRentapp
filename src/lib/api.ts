@@ -66,6 +66,13 @@ export async function register(name: string, email: string, password: string) {
   });
 }
 
+export async function requestPasswordReset(email: string) {
+  return request<{ temporaryPassword: string }>("/api/auth/password-reset", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function getMe() {
   return request<AuthUser>("/api/me");
 }
