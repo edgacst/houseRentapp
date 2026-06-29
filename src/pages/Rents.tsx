@@ -132,19 +132,30 @@ export default function Rents() {
     const normalizedRaw = normalizeText(deposit.raw);
     const normalizedSender = normalizeText(deposit.sender);
 
-    return openPayments
-      .filter((payment) => payment.rentAmount + payment.maintenanceFee === deposit.amount)
-      .sort((a, b) => {
-        const aTenant = normalizeText(getContractParts(a.contractId).tenant?.name ?? "");
-        const bTenant = normalizeText(getContractParts(b.contractId).tenant?.name ?? "");
-        const aStrong = aTenant && (normalizedRaw.includes(aTenant) || normalizedSender.includes(aTenant));
-        const bStrong = bTenant && (normalizedRaw.includes(bTenant) || normalizedSender.includes(bTenant));
-        if (aStrong === bStrong) {
-          return a.dueDate.localeCompare(b.dueDate);
-        }
-        return aStrong ? -1 : 1;
+    const scoredPayments = openPayments
+      .map((payment) => {
+        const tenantName = normalizeText(getContractParts(payment.contractId).tenant?.name ?? "");
+        const totalAmount = payment.rentAmount + payment.maintenanceFee;
+        const tenantMatched =
+          tenantName &&
+          (normalizedRaw.includes(tenantName) || normalizedSender.includes(tenantName));
+        const amountMatched = totalAmount === deposit.amount;
+
+        return {
+          payment,
+          score: Number(amountMatched) * 3 + Number(tenantMatched) * 5,
+        };
       })
-      .map((payment) => payment.id);
+      .filter((item) => item.score > 0);
+
+    return scoredPayments
+      .sort((a, b) => {
+        if (a.score === b.score) {
+          return a.payment.dueDate.localeCompare(b.payment.dueDate);
+        }
+        return b.score - a.score;
+      })
+      .map((item) => item.payment.id);
   };
 
   const analyzeSmsText = () => {
@@ -178,8 +189,14 @@ export default function Rents() {
       return;
     }
 
+    const existingTotal = payment.rentAmount + payment.maintenanceFee;
+
     await upsertRentPayment({
       ...payment,
+      rentAmount:
+        existingTotal === 0 && match.deposit.amount > 0
+          ? match.deposit.amount
+          : payment.rentAmount,
       paidDate: match.deposit.paidDate,
       status: "paid",
       memo: [payment.memo, `입금 문자 자동 처리: ${match.deposit.sender || "입금자 미확인"}`]
@@ -606,6 +623,11 @@ function extractSender(text: string) {
   const explicit = text.match(/입금(?:자|인)?\s*[: ]\s*([가-힣A-Za-z0-9]+)/);
   if (explicit) {
     return explicit[1];
+  }
+
+  const beforeAmount = text.match(/^([가-힣A-Za-z]{2,12})\s+[0-9][0-9,]*\s*원/);
+  if (beforeAmount && !bankWords.includes(beforeAmount[1])) {
+    return beforeAmount[1];
   }
 
   const beforeDeposit = text.match(/([가-힣A-Za-z]{2,12})\s*(?:님)?\s*(?:입금|이체)/);
