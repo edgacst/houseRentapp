@@ -5,7 +5,7 @@ function VacancyStatus() {
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-black text-slate-950">공실 현황</h2>
+      <h2 className="text-lg font-black text-amber-700">공실 현황</h2>
       <p className="mt-1 text-sm text-slate-500">건물별 공실 비율입니다.</p>
 
       <div className="mt-5 space-y-4">

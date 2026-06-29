@@ -15,7 +15,7 @@ function ExpiringContracts() {
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-black text-slate-950">계약 만료 예정</h2>
+      <h2 className="text-lg font-black text-rose-700">계약 만료 예정</h2>
       <p className="mt-1 text-sm text-slate-500">
         가까운 만료일 순서로 표시합니다.
       </p>

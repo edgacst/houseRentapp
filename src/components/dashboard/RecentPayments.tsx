@@ -15,7 +15,7 @@ function RecentPayments() {
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-black text-slate-950">최근 월세</h2>
+          <h2 className="text-lg font-black text-emerald-700">최근 월세</h2>
           <p className="mt-1 text-sm text-slate-500">
             청구와 수납 상태를 빠르게 확인합니다.
           </p>

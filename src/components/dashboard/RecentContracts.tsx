@@ -16,7 +16,7 @@ function RecentContracts() {
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-black text-slate-950">최근 계약</h2>
+          <h2 className="text-lg font-black text-blue-700">최근 계약</h2>
           <p className="mt-1 text-sm text-slate-500">
             새로 등록되었거나 관리 중인 계약입니다.
           </p>
