@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppProvider, useAppData } from "./context/AppContext";
 import Account from "./pages/Account";
 import AdminUsers from "./pages/AdminUsers";
+import Alerts from "./pages/Alerts";
 import Auth from "./pages/Auth";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
@@ -43,6 +44,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/alerts" element={<Alerts />} />
         <Route path="/properties" element={<Properties />} />
         <Route path="/properties/:id" element={<PropertyDetail />} />
         <Route path="/rooms" element={<Rooms />} />

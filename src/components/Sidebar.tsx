@@ -1,8 +1,10 @@
 import { NavLink } from "react-router-dom";
 import { useAppData } from "../context/AppContext";
+import { buildAlerts } from "../lib/alerts";
 
 const menus = [
   { name: "대시보드", path: "/dashboard", icon: "D" },
+  { name: "알림센터", path: "/alerts", icon: "N" },
   { name: "부동산", path: "/properties", icon: "P" },
   { name: "호실관리", path: "/rooms", icon: "R" },
   { name: "임차인", path: "/tenants", icon: "T" },
@@ -20,7 +22,9 @@ const adminMenus = [
 ];
 
 function Sidebar() {
-  const { user, logout } = useAppData();
+  const data = useAppData();
+  const { user, logout } = data;
+  const alertCount = buildAlerts(data).length;
 
   return (
     <aside className="sticky top-0 flex h-screen w-72 flex-col border-r border-slate-200 bg-white/95 text-slate-900 backdrop-blur">
@@ -62,7 +66,18 @@ function Sidebar() {
                 >
                   {menu.icon}
                 </span>
-                {menu.name}
+                <span className="min-w-0 flex-1 truncate">{menu.name}</span>
+                {menu.path === "/alerts" && alertCount > 0 && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+                      isActive
+                        ? "bg-white text-slate-950"
+                        : "bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {alertCount}
+                  </span>
+                )}
               </>
             )}
           </NavLink>
@@ -73,10 +88,10 @@ function Sidebar() {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-semibold text-slate-500">현재 단계</p>
           <p className="mt-1 text-sm font-bold text-slate-900">
-            인증 + DB + 수익/지출 관리
+            알림 + 백업 + 수익관리
           </p>
           <div className="mt-3 h-2 rounded-full bg-slate-200">
-            <div className="h-2 w-5/6 rounded-full bg-blue-600" />
+            <div className="h-2 w-[88%] rounded-full bg-blue-600" />
           </div>
         </div>
 

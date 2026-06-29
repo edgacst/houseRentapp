@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { useAppData } from "../../context/AppContext";
+import { buildAlerts } from "../../lib/alerts";
 import DashboardCard from "../DashboardCard";
 import ExpiringContracts from "./ExpiringContracts";
 import RecentContracts from "./RecentContracts";
@@ -6,8 +8,10 @@ import RecentPayments from "./RecentPayments";
 import VacancyStatus from "./VacancyStatus";
 
 function DashboardOverview() {
-  const { properties, rooms, contracts, rentPayments, isDataLoading } =
-    useAppData();
+  const data = useAppData();
+  const { properties, rooms, contracts, rentPayments, isDataLoading } = data;
+  const alerts = buildAlerts(data);
+  const urgentAlerts = alerts.filter((alert) => alert.level === "danger");
   const vacantRooms = rooms.filter((room) => room.status === "vacant").length;
   const occupiedRooms = rooms.filter((room) => room.status === "occupied").length;
   const occupancyRate = rooms.length
@@ -57,8 +61,8 @@ function DashboardOverview() {
               수납, 공실, 계약 만료를 놓치지 않는 임대 관리
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              HOUSERENT는 건물과 호실 데이터를 기반으로 임대 현황을
-              정리합니다. 다음 단계에서는 임차인, 계약, 월세 데이터까지 모두 API로 연결됩니다.
+              HOUSERENT는 건물과 호실 데이터를 기반으로 임대 현황을 정리합니다.
+              알림센터에서 오늘 처리해야 할 일을 먼저 확인하세요.
             </p>
           </div>
 
@@ -69,6 +73,25 @@ function DashboardOverview() {
           </div>
         </div>
       </section>
+
+      {alerts.length > 0 && (
+        <Link
+          to="/alerts"
+          className="block rounded-lg border border-red-100 bg-red-50 px-5 py-4 shadow-sm transition hover:border-red-200"
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-black text-red-700">
+                처리할 알림 {alerts.length}건
+              </p>
+              <p className="mt-1 text-sm text-red-600">
+                긴급 {urgentAlerts.length}건 · 첫 알림: {alerts[0].title}
+              </p>
+            </div>
+            <span className="text-sm font-black text-red-700">알림센터 보기</span>
+          </div>
+        </Link>
+      )}
 
       {isDataLoading && (
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
