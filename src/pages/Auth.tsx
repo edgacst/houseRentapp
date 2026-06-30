@@ -1,4 +1,6 @@
 import { useState } from "react";
+import authNatureHomes from "../assets/auth-nature-homes.png";
+import BrandLogo from "../components/BrandLogo";
 import { useAppData } from "../context/AppContext";
 import { requestPasswordReset } from "../lib/api";
 
@@ -10,6 +12,7 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -54,18 +57,18 @@ export default function Auth() {
 
   return (
     <div className="grid min-h-screen bg-[#f6f7fb] lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="hidden min-h-screen bg-slate-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-lg bg-white text-sm font-black text-slate-950">
-            HR
-          </div>
-          <div>
-            <p className="text-xl font-black tracking-tight">HOUSERENT</p>
-            <p className="text-sm text-slate-400">Rental operations platform</p>
-          </div>
+      <section
+        className="relative hidden min-h-screen overflow-hidden bg-slate-950 bg-cover bg-center p-10 text-white lg:flex lg:flex-col lg:justify-between"
+        style={{ backgroundImage: `url(${authNatureHomes})` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/78 to-slate-950/30" />
+        <div className="absolute inset-0 bg-slate-950/20" />
+
+        <div className="relative">
+          <BrandLogo variant="light" />
         </div>
 
-        <div className="max-w-xl">
+        <div className="relative max-w-xl">
           <p className="text-sm font-bold text-blue-300">임대 관리의 기준</p>
           <h1 className="mt-4 text-5xl font-black tracking-tight">
             건물, 호실, 계약, 수납을 하나의 흐름으로 관리하세요.
@@ -75,7 +78,7 @@ export default function Auth() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="relative grid grid-cols-3 gap-3">
           <Metric label="수납관리" value="월세" />
           <Metric label="공실관리" value="호실" />
           <Metric label="계약관리" value="만료" />
@@ -85,7 +88,7 @@ export default function Auth() {
       <section className="grid min-h-screen place-items-center px-5 py-10">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
-            <p className="text-sm font-black text-blue-600">HOUSERENT</p>
+            <p className="text-sm font-black text-blue-600">하우스렌트</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
               임대 관리 시작하기
             </h1>
@@ -135,11 +138,13 @@ export default function Auth() {
               {!isForgot && (
                 <Field
                   label="비밀번호"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={setPassword}
                   placeholder="8자 이상"
                   autoComplete={isRegister ? "new-password" : "current-password"}
+                  passwordVisible={showPassword}
+                  onTogglePasswordVisibility={() => setShowPassword((visible) => !visible)}
                 />
               )}
 
@@ -224,6 +229,8 @@ function Field({
   placeholder,
   type = "text",
   autoComplete,
+  passwordVisible,
+  onTogglePasswordVisibility,
 }: {
   label: string;
   value: string;
@@ -231,19 +238,85 @@ function Field({
   placeholder: string;
   type?: string;
   autoComplete?: string;
+  passwordVisible?: boolean;
+  onTogglePasswordVisibility?: () => void;
 }) {
+  const hasPasswordToggle = Boolean(onTogglePasswordVisibility);
+
   return (
     <label className="block">
       <span className="text-sm font-bold text-slate-700">{label}</span>
-      <input
-        type={type}
-        value={value}
-        required
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-      />
+      <div className="relative mt-2">
+        <input
+          type={type}
+          value={value}
+          required
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className={`w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 ${
+            hasPasswordToggle ? "pr-12" : ""
+          }`}
+        />
+        {hasPasswordToggle && (
+          <button
+            type="button"
+            aria-label={passwordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
+            title={passwordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
+            onClick={onTogglePasswordVisibility}
+            className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+          >
+            {passwordVisible ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        )}
+      </div>
     </label>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m3 3 18 18"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M10.6 10.6A2 2 0 0 0 13.4 13.4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M8.4 5.5A10.3 10.3 0 0 1 12 5c6 0 9.5 7 9.5 7a16.7 16.7 0 0 1-2.7 3.5M6.1 6.8C3.8 8.4 2.5 12 2.5 12s3.5 7 9.5 7c1.2 0 2.3-.3 3.3-.7"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
   );
 }

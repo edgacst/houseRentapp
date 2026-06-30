@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "houserentapp",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-06-30",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    {
+      "pattern": "houserent365.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.houserent365.com",
+      "custom_domain": true
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "houserent-db",
+      "database_id": "8a74a527-31c8-4403-9645-c3d752e44207"
+    }
+  ],
+  "vars": {
+    "JWT_SECRET": "change-this-before-production"
+  }
+}

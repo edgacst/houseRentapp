@@ -1,0 +1,160 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  passwordHash TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user',
+  status TEXT NOT NULL DEFAULT 'active',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS properties (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  type TEXT NOT NULL,
+  imageName TEXT DEFAULT '',
+  imageData TEXT DEFAULT '',
+  imageNames TEXT DEFAULT '[]',
+  imageDataList TEXT DEFAULT '[]',
+  builtYear INTEGER,
+  totalFloors INTEGER,
+  hasElevator INTEGER NOT NULL DEFAULT 0,
+  parkingAvailable INTEGER NOT NULL DEFAULT 0,
+  managementType TEXT DEFAULT '',
+  managerName TEXT DEFAULT '',
+  managerPhone TEXT DEFAULT '',
+  memo TEXT DEFAULT '',
+  purchasePrice INTEGER NOT NULL DEFAULT 0,
+  acquisitionTax INTEGER NOT NULL DEFAULT 0,
+  brokerageFee INTEGER NOT NULL DEFAULT 0,
+  renovationCost INTEGER NOT NULL DEFAULT 0,
+  otherPurchaseCost INTEGER NOT NULL DEFAULT 0,
+  loanAmount INTEGER NOT NULL DEFAULT 0,
+  documentNames TEXT DEFAULT '[]',
+  documentDataList TEXT DEFAULT '[]',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rooms (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  propertyId TEXT NOT NULL,
+  name TEXT NOT NULL,
+  floor INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'vacant',
+  deposit INTEGER NOT NULL DEFAULT 0,
+  monthlyRent INTEGER NOT NULL DEFAULT 0,
+  maintenanceFee INTEGER NOT NULL DEFAULT 0,
+  area REAL NOT NULL DEFAULT 0,
+  memo TEXT DEFAULT '',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (propertyId) REFERENCES properties(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT DEFAULT '',
+  memo TEXT DEFAULT '',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS contracts (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  propertyId TEXT NOT NULL,
+  roomId TEXT NOT NULL,
+  tenantId TEXT NOT NULL,
+  startDate TEXT NOT NULL,
+  endDate TEXT NOT NULL,
+  deposit INTEGER NOT NULL,
+  monthlyRent INTEGER NOT NULL,
+  maintenanceFee INTEGER NOT NULL,
+  paymentDay INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  memo TEXT DEFAULT '',
+  attachmentName TEXT DEFAULT '',
+  attachmentData TEXT DEFAULT '',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (propertyId) REFERENCES properties(id) ON DELETE CASCADE,
+  FOREIGN KEY (roomId) REFERENCES rooms(id) ON DELETE CASCADE,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rent_payments (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  contractId TEXT NOT NULL,
+  dueDate TEXT NOT NULL,
+  paidDate TEXT DEFAULT '',
+  rentAmount INTEGER NOT NULL,
+  maintenanceFee INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'unpaid',
+  memo TEXT DEFAULT '',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (contractId) REFERENCES contracts(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_charges (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  propertyId TEXT NOT NULL,
+  roomId TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  billingMonth TEXT NOT NULL,
+  dueDate TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'unpaid',
+  paidDate TEXT DEFAULT '',
+  memo TEXT DEFAULT '',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (propertyId) REFERENCES properties(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  propertyId TEXT NOT NULL,
+  roomId TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  expenseDate TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  vendor TEXT DEFAULT '',
+  memo TEXT DEFAULT '',
+  receiptName TEXT DEFAULT '',
+  receiptData TEXT DEFAULT '',
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (propertyId) REFERENCES properties(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_properties_user ON properties(userId);
+CREATE INDEX IF NOT EXISTS idx_rooms_user ON rooms(userId);
+CREATE INDEX IF NOT EXISTS idx_rooms_property ON rooms(propertyId);
+CREATE INDEX IF NOT EXISTS idx_tenants_user ON tenants(userId);
+CREATE INDEX IF NOT EXISTS idx_contracts_user ON contracts(userId);
+CREATE INDEX IF NOT EXISTS idx_rent_payments_user ON rent_payments(userId);
+CREATE INDEX IF NOT EXISTS idx_maintenance_charges_user ON maintenance_charges(userId);
+CREATE INDEX IF NOT EXISTS idx_expenses_user ON expenses(userId);

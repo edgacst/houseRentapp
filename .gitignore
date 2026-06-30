@@ -13,6 +13,8 @@ dist-ssr
 *.local
 .env
 .local-postgres
+.wrangler
+.wrangler-dry-run
 
 # Editor directories and files
 .vscode/*

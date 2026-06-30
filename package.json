@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "tsx watch server/index.ts",
+    "dev:worker": "wrangler dev",
     "typecheck:api": "tsc -p tsconfig.server.json",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "d1:init": "wrangler d1 execute houserent-db --local --file worker/schema.sql",
+    "d1:init:remote": "wrangler d1 execute houserent-db --remote --file worker/schema.sql",
+    "deploy:worker": "npm run build && wrangler deploy",
     "db:studio": "prisma studio",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
@@ -20,6 +24,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "hono": "^4.12.27",
+    "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
     "react": "^19.2.7",
@@ -28,6 +34,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260630.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
@@ -43,6 +50,7 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.22.4",
     "typescript": "~6.0.2",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "wrangler": "^4.105.0"
   }
 }

@@ -31,6 +31,8 @@ export default function Expenses() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [form, setForm] = useState<Expense>(createEmptyExpense());
+  const [formError, setFormError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   function createEmptyExpense(): Expense {
     return {
@@ -79,6 +81,7 @@ export default function Expenses() {
     .reduce((sum, expense) => sum + expense.amount, 0);
 
   const openForm = (expense?: Expense) => {
+    setFormError("");
     setEditingExpense(expense ?? null);
     setForm(expense ?? createEmptyExpense());
     setIsOpen(true);
@@ -149,9 +152,21 @@ export default function Expenses() {
           <form
             onSubmit={async (event) => {
               event.preventDefault();
-              await upsertExpense(form);
-              setIsOpen(false);
-              setEditingExpense(null);
+              setFormError("");
+              setIsSaving(true);
+              try {
+                await upsertExpense(form);
+                setIsOpen(false);
+                setEditingExpense(null);
+              } catch (error) {
+                setFormError(
+                  error instanceof Error
+                    ? error.message
+                    : "지출 내역을 저장하지 못했습니다.",
+                );
+              } finally {
+                setIsSaving(false);
+              }
             }}
             className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
           >
@@ -257,88 +272,126 @@ export default function Expenses() {
                 className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
               />
             </label>
+            {formError && (
+              <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {formError}
+              </p>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => {
+                  setFormError("");
                   setIsOpen(false);
                   setEditingExpense(null);
                 }}
+                disabled={isSaving}
                 className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700"
               >
                 취소
               </button>
               <button
                 type="submit"
-                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white"
+                disabled={isSaving}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
               >
-                저장
+                {isSaving ? "저장 중" : "저장"}
               </button>
             </div>
           </form>
         )}
 
-        <div className="space-y-3">
-          {filteredExpenses.length === 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-              등록된 지출이 없습니다.
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-lg font-black text-slate-950">지출 목록</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {year}년 기준 총 {filteredExpenses.length.toLocaleString("ko-KR")}건
+              </p>
             </div>
-          )}
-          {filteredExpenses.map((expense) => (
-            <div
-              key={expense.id}
-              className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
-                      {categoryText[expense.category]}
-                    </span>
-                    <span className="text-xs font-bold text-slate-400">
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
+                <tr>
+                  <th className="w-16 px-5 py-3">순번</th>
+                  <th className="px-5 py-3">지출명</th>
+                  <th className="px-5 py-3">분류</th>
+                  <th className="px-5 py-3">지출일</th>
+                  <th className="px-5 py-3">건물/호실</th>
+                  <th className="px-5 py-3">거래처</th>
+                  <th className="px-5 py-3 text-right">금액</th>
+                  <th className="px-5 py-3">첨부</th>
+                  <th className="px-5 py-3 text-right">관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredExpenses.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-5 py-10 text-center text-slate-500">
+                      등록된 지출이 없습니다.
+                    </td>
+                  </tr>
+                )}
+                {filteredExpenses.map((expense, index) => (
+                  <tr key={expense.id} className="align-middle hover:bg-slate-50/80">
+                    <td className="px-5 py-4 font-black text-slate-400">{index + 1}</td>
+                    <td className="max-w-[240px] px-5 py-4">
+                      <p className="truncate font-black text-slate-950">{expense.title}</p>
+                      {expense.memo && (
+                        <p className="mt-1 truncate text-xs text-slate-500">{expense.memo}</p>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
+                        {categoryText[expense.category]}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">
                       {expense.expenseDate}
-                    </span>
-                  </div>
-                  <h2 className="mt-2 text-lg font-black text-slate-950">
-                    {expense.title}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {getPropertyName(expense.propertyId)} · {getRoomName(expense.roomId)}
-                    {expense.vendor ? ` · ${expense.vendor}` : ""}
-                  </p>
-                  {expense.receiptName && (
-                    <p className="mt-2 text-xs font-bold text-blue-600">
-                      첨부파일: {expense.receiptName}
-                    </p>
-                  )}
-                  {expense.memo && (
-                    <p className="mt-2 whitespace-pre-line text-xs text-slate-500">
-                      {expense.memo}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <p className="mr-2 text-lg font-black text-slate-950">
-                    {expense.amount.toLocaleString("ko-KR")}원
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => openForm(expense)}
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700"
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void deleteExpense(expense.id)}
-                    className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600"
-                  >
-                    삭제
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+                    </td>
+                    <td className="max-w-[220px] px-5 py-4 text-slate-600">
+                      <p className="truncate font-semibold">
+                        {getPropertyName(expense.propertyId)}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-slate-500">
+                        {getRoomName(expense.roomId)}
+                      </p>
+                    </td>
+                    <td className="max-w-[160px] px-5 py-4">
+                      <p className="truncate text-slate-600">{expense.vendor || "-"}</p>
+                    </td>
+                    <td className="px-5 py-4 text-right font-black text-slate-950">
+                      {expense.amount.toLocaleString("ko-KR")}원
+                    </td>
+                    <td className="max-w-[160px] px-5 py-4">
+                      <p className="truncate text-xs font-bold text-blue-600">
+                        {expense.receiptName || "-"}
+                      </p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openForm(expense)}
+                          className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700"
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteExpense(expense.id)}
+                          className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </MainLayout>

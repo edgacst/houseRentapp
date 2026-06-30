@@ -303,7 +303,7 @@ export default function Contracts() {
           </form>
         )}
 
-        <div className="space-y-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredContracts.map((contract) => {
             const property = properties.find((item) => item.id === contract.propertyId);
             const room = rooms.find((item) => item.id === contract.roomId);
@@ -311,37 +311,63 @@ export default function Contracts() {
             return (
               <div
                 key={contract.id}
-                className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+                className="group flex aspect-square min-h-[270px] flex-col justify-between overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
               >
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <h2 className="text-lg font-black text-slate-950">
-                      {property?.name ?? "-"} {room?.name ?? ""}
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {tenant?.name ?? "-"} · {contract.startDate} ~ {contract.endDate}
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase text-blue-600">
+                        Contract
+                      </p>
+                      <h2 className="mt-2 line-clamp-2 text-xl font-black leading-tight text-slate-950">
+                        {property?.name ?? "-"}
+                      </h2>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
+                      {statusText[contract.status]}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 rounded-lg bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-black text-slate-900">
+                        {room?.name ?? "호실 미지정"}
+                      </p>
+                      <p className="truncate text-sm font-bold text-slate-500">
+                        {tenant?.name ?? "-"}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-slate-500">
+                      {contract.startDate} ~ {contract.endDate}
                     </p>
-                    <p className="mt-2 text-sm font-bold text-slate-700">
-                      보증금 {contract.deposit.toLocaleString("ko-KR")}원 · 월{" "}
-                      {(contract.monthlyRent + contract.maintenanceFee).toLocaleString("ko-KR")}원
-                    </p>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <MoneyBox
+                      label="보증금"
+                      value={`${contract.deposit.toLocaleString("ko-KR")}원`}
+                    />
+                    <MoneyBox
+                      label="월 납부"
+                      value={`${(contract.monthlyRent + contract.maintenanceFee).toLocaleString("ko-KR")}원`}
+                    />
+                  </div>
+
                     {contract.attachmentName && contract.attachmentData && (
                       <a
                         href={contract.attachmentData}
                         download={contract.attachmentName}
-                        className="mt-2 inline-flex text-sm font-bold text-blue-600 hover:text-blue-700"
+                        className="mt-3 inline-flex max-w-full truncate text-xs font-bold text-blue-600 hover:text-blue-700"
                       >
                         계약서 내려받기: {contract.attachmentName}
                       </a>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                      {statusText[contract.status]}
-                    </span>
+                </div>
+
+                <div className="mt-4 flex gap-2">
                     <button
                       onClick={() => openForm(contract)}
-                      className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700"
+                      className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                     >
                       수정
                     </button>
@@ -350,11 +376,10 @@ export default function Contracts() {
                         if (!confirm("계약을 삭제하면 연결된 월세도 삭제됩니다. 계속할까요?")) return;
                         void deleteContract(contract.id);
                       }}
-                      className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600"
+                      className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:border-red-300 hover:bg-red-50"
                     >
                       삭제
                     </button>
-                  </div>
                 </div>
               </div>
             );
@@ -471,6 +496,15 @@ function FormActions({ onCancel }: { onCancel: () => void }) {
       >
         저장
       </button>
+    </div>
+  );
+}
+
+function MoneyBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-100 bg-white px-3 py-2">
+      <p className="text-[11px] font-bold text-slate-400">{label}</p>
+      <p className="mt-1 truncate text-sm font-black text-slate-900">{value}</p>
     </div>
   );
 }

@@ -31,7 +31,7 @@ function AppRoutes() {
   if (isBootstrapping) {
     return (
       <div className="grid min-h-screen place-items-center bg-slate-100 text-sm font-semibold text-slate-600">
-        HOUSERENT 준비 중
+        하우스렌트 준비 중
       </div>
     );
   }

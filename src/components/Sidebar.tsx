@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import BrandLogo from "./BrandLogo";
 import { useAppData } from "../context/AppContext";
 import { buildAlerts } from "../lib/alerts";
 
@@ -30,17 +31,7 @@ function Sidebar() {
   return (
     <aside className="sticky top-0 flex h-screen w-72 flex-col border-r border-slate-200 bg-white/95 text-slate-900 backdrop-blur">
       <div className="border-b border-slate-100 p-6">
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-slate-950 text-sm font-black text-white">
-            HR
-          </div>
-          <div>
-            <h1 className="text-xl font-black tracking-tight">HOUSERENT</h1>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">
-              Rental operations
-            </p>
-          </div>
-        </div>
+        <BrandLogo />
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4">
@@ -86,16 +77,6 @@ function Sidebar() {
       </nav>
 
       <div className="space-y-3 p-4">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold text-slate-500">현재 단계</p>
-          <p className="mt-1 text-sm font-bold text-slate-900">
-            문서 + 알림 + 수익관리
-          </p>
-          <div className="mt-3 h-2 rounded-full bg-slate-200">
-            <div className="h-2 w-[90%] rounded-full bg-blue-600" />
-          </div>
-        </div>
-
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-50 text-sm font-black text-blue-700">
